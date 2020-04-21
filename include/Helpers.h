@@ -48,7 +48,7 @@ std::unique_ptr<OperatorFunction<Field>> createUtilisedSolver(MGUtilizedSolverTy
       par.tolerance, par.maxIter, prec, par.restartLength, false, false));
   } else if(solverType == MGUtilizedSolverType::BiCGSTAB) {
     return std::unique_ptr<OperatorFunction<Field>>(
-      new BiConjugateGradientStabilised<Field>(par.tolerance, par.maxIter, false, false));
+      new BiCGSTAB<Field>(par.tolerance, par.maxIter, false, false));
   } else
     assert(0);
 }
@@ -58,7 +58,7 @@ std::unique_ptr<SchurRedBlackBase<Field>> createUtilisedRBSolver(MGUtilizedSolve
                                                                  OperatorFunction<Field>&    solver) {
   // TODO: This currently only works for non-herm solvers! Need a toggle between herm and non herm
   return std::unique_ptr<SchurRedBlackBase<Field>>(
-    new SchurRedBlackDiagMooeeNonHermSolve<Field>(solver, false, true));
+    new NonHermitianSchurRedBlackDiagMooeeSolve<Field>(solver, false, true));
 }
 
 template<class Field>
