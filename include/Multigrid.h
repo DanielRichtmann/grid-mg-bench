@@ -30,6 +30,7 @@ See the full license in the file "LICENSE" in the top level distribution directo
 
 #include <CoarseningPolicyRework.h>
 #include <CoarseningLookupTableRework.h>
+#include <GeometryRework.h>
 #include <AggregationKernelsRework.h>
 #include <CoarsenedMatrixKernelsRework.h>
 #include <Profiler.h>
