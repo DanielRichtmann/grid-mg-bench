@@ -40,6 +40,7 @@ public:
 
   INHERIT_COARSENING_POLICY_TYPES(CoarseningPolicy);
   INHERIT_COARSENING_POLICY_VARIABLES(CoarseningPolicy);
+  using Geometry = Grid::Rework::Geometry;
 
   /////////////////////////////////////////////
   // Kernel functions
@@ -164,7 +165,7 @@ public:
     });
   }
 
-  static void shiftLinks(GeometryDevelop& geom, std::vector<LinkField>& Y) {
+  static void shiftLinks(Geometry& geom, std::vector<LinkField>& Y) {
     // Relation between forward and backward link matrices taken from M. Rottmann's PHD thesis:
     // D_{A_{q,\kappa}, A_{p,\tau}} = - D^\dag_{A_{p,\tau}, A_{q,\kappa}}
     for(int p = 0; p < geom.npoint; ++p) {

@@ -49,6 +49,7 @@ public:
 
   using Kernels               = CoarsenedMatrixKernels<CoarseningPolicy>;
   using CoarseningLookupTable = Grid::Rework::CoarseningLookupTable;
+  using Geometry              = Grid::Rework::Geometry;
 
   /////////////////////////////////////////////
   // Member Data
@@ -57,7 +58,7 @@ public:
   GridBase* grid_;
   GridBase* cbgrid_;
 
-  GeometryDevelop geom_;
+  Geometry geom_;
 
   int speedLevel_;
   int hermitian_;
@@ -126,7 +127,7 @@ public:
     // happens since the lambda copies the this pointer which points to host memory, see
     // - https://docs.nvidia.com/cuda/cuda-c-programming-guide/#star-this-capture
     // - https://devblogs.nvidia.com/new-compiler-features-cuda-8/
-    GeometryDevelop& geom = geom_;
+    Geometry& geom = geom_;
     CartesianStencil<SiteSpinor, SiteSpinor, int>& stencil = stencil_;
 
     accelerator_for(ss, Grid()->oSites(), Simd::Nsimd(), {
@@ -296,7 +297,7 @@ public:
 
       // need to take a reference, otherwise we get illegal memory accesses
       // see links above for reason
-      GeometryDevelop& geom = geom_;
+      Geometry& geom = geom_;
 
       accelerator_for(ss, tmp.Grid()->oSites(), Simd::Nsimd(), {
         SiteSpinorCR    res = Zero();
@@ -338,7 +339,7 @@ public:
 
       // need to take a reference, otherwise we get illegal memory accesses
       // see links above for reason
-      GeometryDevelop& geom = geom_;
+      Geometry& geom = geom_;
 
       accelerator_for(ss, in.Grid()->oSites(), Simd::Nsimd(), {
         SiteSpinorCR    res = Zero();
