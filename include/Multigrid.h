@@ -28,15 +28,15 @@ See the full license in the file "LICENSE" in the top level distribution directo
 
 #pragma once
 
-#include <tests/multigrid/CoarseningPolicyRework.h>
-#include <tests/multigrid/CoarseningLookupTableRework.h>
-#include <tests/multigrid/AggregationKernelsRework.h>
-#include <tests/multigrid/CoarsenedMatrixKernelsRework.h>
-#include <tests/multigrid/Profiler.h>
-#include <tests/multigrid/BasisVectors.h>
-#include <tests/multigrid/AggregationRework.h>
-#include <tests/multigrid/CoarsenedMatrixRework.h>
-#include <tests/multigrid/MultigridParams.h>
-#include <tests/multigrid/Helpers.h>
-#include <tests/multigrid/LevelInfo.h>
-#include <tests/multigrid/MultigridPreconditioner.h>
+#include <CoarseningPolicyRework.h>
+#include <CoarseningLookupTableRework.h>
+#include <AggregationKernelsRework.h>
+#include <CoarsenedMatrixKernelsRework.h>
+#include <Profiler.h>
+#include <BasisVectors.h>
+#include <AggregationRework.h>
+#include <CoarsenedMatrixRework.h>
+#include <MultigridParams.h>
+#include <Helpers.h>
+#include <LevelInfo.h>
+#include <MultigridPreconditioner.h>

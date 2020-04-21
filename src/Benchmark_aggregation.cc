@@ -27,7 +27,7 @@ Author: Daniel Richtmann <daniel.richtmann@ur.de>
 /*  END LEGAL */
 
 #include <Grid/Grid.h>
-#include <tests/multigrid/Multigrid.h>
+#include <Multigrid.h>
 #include <Benchmark_helpers.h>
 #include <Layout_converters.h>
 

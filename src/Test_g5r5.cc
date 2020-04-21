@@ -27,8 +27,8 @@
 /*  END LEGAL */
 
 #include <Grid/Grid.h>
-#include <tests/multigrid/Multigrid.h>
-#include <benchmarks/Benchmark_helpers.h>
+#include <Multigrid.h>
+#include <Benchmark_helpers.h>
 
 using namespace Grid;
 using namespace Grid::BenchmarkHelpers;
