@@ -485,12 +485,6 @@ public:
           prof_.Start("CoarsenOperator.AccumInner");
           k_loop_Ns_c mult(calcTmp[k], MphiSplit[p * Ns_c + k], innerSites[p]);
           k_loop_Ns_c iSum[k] = iSum[k] + calcTmp[k];
-          // k_loop_Ns_c iSum[k] = iSum[k] + where(TensorRemove(innerSites[p]) == vComplex(1), MphiSplit[p * Ns_c + k], zero);
-          // k_loop_Ns_c iSum[k] = iSum[k] + where(innerSites[p] == vInteger(1), MphiSplit[p * Ns_c + k], zero);
-          // k_loop_Ns_c iSum[k] = iSum[k] + where(innerSites[p] == Integer(1), MphiSplit[p * Ns_c + k], zero);
-          // k_loop_Ns_c iSum[k] = iSum[k] + where(innerSites[p] == vComplex(1), MphiSplit[p * Ns_c + k], zero);
-          // k_loop_Ns_c iSum[k] = iSum[k] + where(innerSites[p] == 1, MphiSplit[p * Ns_c + k], zero);
-          // k_loop_Ns_c iSum[k] = iSum[k] + where(innerSites[p] == typename FineSiteScalar::vector_type(1), MphiSplit[p * Ns_c + k], zero);
           prof_.Stop("CoarsenOperator.AccumInner", Ns_c);
 
           if(p == self_stencil) {
