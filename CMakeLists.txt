@@ -12,15 +12,8 @@ set(GRID_DIR "" CACHE PATH "path to a directory holding a grid-config binary")
 find_package(Grid REQUIRED)
 if(Grid_FOUND)
     set(CMAKE_CXX_COMPILER ${Grid_CXX})
-    # # version for an installed Grid
-    # set(CMAKE_CXX_COMPILER ${Grid_CXX})
-    # set(CMAKE_CXX_FLAGS        "-I${Grid_PREFIX}/include ${Grid_CXXFLAGS} ${CMAKE_CXX_FLAGS}")
-    # set(CMAKE_EXE_LINKER_FLAGS "-L${Grid_PREFIX}/lib ${Grid_LDFLAGS}  ${CMAKE_EXE_LINKER_FLAGS}")
-
-    # version to use for the current uninstalled grid on my laptop  TODO find a way to get project base dir (= git root) from build dir
-    set(CMAKE_CXX_COMPILER ${Grid_CXX})
-    set(CMAKE_CXX_FLAGS        "-I${Grid_PREFIX}/Grid -I/home/daniel/code/git/rebasing-grid ${Grid_CXXFLAGS} ${CMAKE_CXX_FLAGS}")
-    set(CMAKE_EXE_LINKER_FLAGS "-L${Grid_PREFIX}/Grid ${Grid_LDFLAGS}  ${CMAKE_EXE_LINKER_FLAGS}")
+    set(CMAKE_CXX_FLAGS        "-I${Grid_PREFIX}/include ${Grid_CXXFLAGS} ${CMAKE_CXX_FLAGS}")
+    set(CMAKE_EXE_LINKER_FLAGS "-L${Grid_PREFIX}/lib ${Grid_LDFLAGS} ${CMAKE_EXE_LINKER_FLAGS}")
 endif()
 
 include_directories(include)
