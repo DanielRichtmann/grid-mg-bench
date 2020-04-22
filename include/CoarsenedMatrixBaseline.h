@@ -54,10 +54,10 @@ public:
     directions.resize(npoint);
     displacements.resize(npoint);
     for(int d=0;d<_d;d++){
-      directions[2*d  ] = d+base;
-      directions[2*d+1] = d+base;
-      displacements[2*d  ] = +1;
-      displacements[2*d+1] = -1;
+      directions[d   ] = d+base;
+      directions[d+_d] = d+base;
+      displacements[d  ] = +1;
+      displacements[d+_d]= -1;
     }
     directions   [2*_d]=0;
     displacements[2*_d]=0;
