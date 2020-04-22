@@ -515,7 +515,8 @@ public:
 // Fine Object == (per site) type of fine field
 // nbasis      == number of deflation vectors
 template<class Fobj,class CComplex,int nbasis>
-class CoarsenedMatrix : public SparseMatrixBase<Lattice<iVector<CComplex,nbasis > > >  {
+class CoarsenedMatrix : public SparseMatrixBase<Lattice<iVector<CComplex,nbasis > > >
+                      , public Rework::Profileable {
 public:
     
   typedef iVector<CComplex,nbasis >           siteVector;
@@ -766,6 +767,8 @@ public:
   void CoarsenOperator(GridBase *FineGrid,LinearOperatorBase<Lattice<Fobj> > &linop,
 		       Aggregation<Fobj,CComplex,nbasis> & Subspace)
   {
+    prof_.Start("CoarsenOperator.Total");
+    prof_.Start("CoarsenOperator.Misc");
     typedef Lattice<typename Fobj::tensor_reduced> FineComplexField;
     typedef typename Fobj::scalar_type scalar_type;
 
@@ -798,10 +801,12 @@ public:
     CoarseComplexField oZProj(Grid()); 
 
     CoarseScalar InnerProd(Grid()); 
+    prof_.Stop("CoarsenOperator.Misc");
 
     // Orthogonalise the subblocks over the basis
     // blockOrthogonalise(InnerProd,Subspace.subspace); // NOTE: commented for comparisons to work, should be done outside anyway
 
+    prof_.Start("CoarsenOperator.SetupMasks");
     // Compute the matrix elements of linop between this orthonormal
     // set of vectors.
     int self_stencil=-1;
@@ -837,18 +842,25 @@ public:
     oddmask  = one-evenmask;
 
     assert(self_stencil!=-1);
+    prof_.Stop("CoarsenOperator.SetupMasks");
 
     for(int i=0;i<nbasis;i++){
 
+      prof_.Start("CoarsenOperator.ExtractVector");
       phi=Subspace.subspace[i];
+      prof_.Stop("CoarsenOperator.ExtractVector");
 
       //      std::cout << GridLogMessage<< "CoarsenMatrix vector "<<i << std::endl;
+      prof_.Start("CoarsenOperator.ApplyOpFirst");
       linop.OpDirAll(phi,Mphi_p);
       linop.OpDiag  (phi,Mphi_p[geom.npoint-1]);
+      prof_.Stop("CoarsenOperator.ApplyOpFirst");
 
       for(int p=0;p<geom.npoint;p++){ 
 
+	prof_.Start("CoarsenOperator.CopyVector");
 	Mphi = Mphi_p[p];
+	prof_.Stop("CoarsenOperator.CopyVector");
 
 	int dir   = geom.directions[p];
 	int disp  = geom.displacements[p];
@@ -858,13 +870,18 @@ public:
 	  ////////////////////////////////////////////////////////////////////////
 	  // Pick out contributions coming from this cell and neighbour cell
 	  ////////////////////////////////////////////////////////////////////////
+	  prof_.Start("CoarsenOperator.ModifyMasks");
 	  omask = masks[p];
 	  imask = one-omask;
+	  prof_.Stop("CoarsenOperator.ModifyMasks");
 	
 	  for(int j=0;j<nbasis;j++){
 	    
+	    prof_.Start("CoarsenOperator.ProjectToSubspaceFirst");
 	    Grid::Upstream::blockMaskedInnerProduct(oZProj,omask,Subspace.subspace[j],Mphi);
+	    prof_.Stop("CoarsenOperator.ProjectToSubspaceFirst");
 	    
+	    prof_.Start("CoarsenOperator.ConstructLinksPositive");
 	    auto iZProj_v = iZProj.View() ;
 	    auto oZProj_v = oZProj.View() ;
 	    auto A_p     =  A[p].View();
@@ -874,6 +891,7 @@ public:
 	    //      if( disp!= 0 ) { accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_p[ss](j,i),oZProj_v(ss)); });}
 	    //	    accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_self[ss](j,i),A_self(ss)(j,i)+iZProj_v(ss)); });
 
+	    prof_.Stop("CoarsenOperator.ConstructLinksPositive");
 	  }
 	}
       }
@@ -882,9 +900,12 @@ public:
       // Faster alternate self coupling.. use hermiticity to save 2x
       ///////////////////////////////////////////
       {
+	prof_.Start("CoarsenOperator.ApplyOpSecond");
 	mult(tmp,phi,evenmask);  linop.Op(tmp,Mphie);
 	mult(tmp,phi,oddmask );  linop.Op(tmp,Mphio);
+	prof_.Stop("CoarsenOperator.ApplyOpSecond");
 
+	prof_.Start("CoarsenOperator.AccumEO");
 	{
 	  auto tmp_      = tmp.View();
 	  auto evenmask_ = evenmask.View();
@@ -895,9 +916,13 @@ public:
 	      coalescedWrite(tmp_[ss],evenmask_(ss)*Mphie_(ss) + oddmask_(ss)*Mphio_(ss));
 	    });
 	}
+	prof_.Stop("CoarsenOperator.AccumEO");
 
+	prof_.Start("CoarsenOperator.ProjectToSubspaceSecond");
 	blockProject(SelfProj,tmp,Subspace.subspace);
+	prof_.Stop("CoarsenOperator.ProjectToSubspaceSecond");
 
+	prof_.Start("CoarsenOperator.ConstructLinksSelf");
 	auto SelfProj_ = SelfProj.View();
 	auto A_self  = A[self_stencil].View();
 
@@ -906,6 +931,7 @@ public:
 	    coalescedWrite(A_self[ss](j,i), SelfProj_(ss)(j));
 	  }
 	});
+	prof_.Stop("CoarsenOperator.ConstructLinksSelf");
 
       }
     }
@@ -915,6 +941,7 @@ public:
     }
       // AssertHermitian();
       // ForceDiagonal();
+    prof_.Stop("CoarsenOperator.Total");
   }
 
 #if 0
@@ -941,6 +968,7 @@ public:
 
 
   void ForceHermitian(void) {
+    prof_.Start("CoarsenOperator.ForceHermitian");
     CoarseMatrix Diff  (Grid());
     for(int p=0;p<geom.npoint;p++){
       int dir   = geom.directions[p];
@@ -958,6 +986,7 @@ public:
 	}
       }
     }
+    prof_.Stop("CoarsenOperator.ForceHermitian");
   }
   void AssertHermitian(void) {
     CoarseMatrix AA    (Grid());
