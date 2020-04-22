@@ -51,7 +51,7 @@ public:
   /////////////////////////////////////////////
 
 public:
-  Geometry(int ndim, bool directionsFaster = false)
+  Geometry(int ndim, bool directionsFaster = true)
     : dimsToActOn((ndim >= 5) ? 4 : ndim) // coarse stencil acts on 4d lattice at most
     , ndimension(ndim)
     , npoint(2*dimsToActOn+1)

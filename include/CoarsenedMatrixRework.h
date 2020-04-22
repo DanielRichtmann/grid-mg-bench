@@ -85,7 +85,7 @@ public:
                   int                    hermitian  = 0)
     : grid_(&CoarseGrid)
     , cbgrid_(&CoarseRBGrid)
-    , geom_(CoarseGrid._ndimension, true)
+    , geom_(CoarseGrid._ndimension)
     , speedLevel_(speedLevel)
     , hermitian_(hermitian)
     , stencil_(&CoarseGrid, geom_.npoint, Even, geom_.directions, geom_.displacements, 0)
