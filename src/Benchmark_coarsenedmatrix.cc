@@ -27,7 +27,10 @@
 /*  END LEGAL */
 
 #include <Grid/Grid.h>
-#include <tests/multigrid/Multigrid.h>
+#include <Multigrid.h>
+#include <CoarsenedMatrixBaseline.h>
+#include <CoarsenedMatrixUpstream.h>
+#include <CoarsenedMatrixUpstreamImproved.h>
 #include <Benchmark_helpers.h>
 #include <Layout_converters.h>
 
@@ -128,52 +131,64 @@ int main(int argc, char** argv) {
   typedef CoarseningPolicy<LatticeFermion, nB, 2> TwoSpinCoarseningPolicy;
   typedef CoarseningPolicy<LatticeFermion, nB, 4> FourSpinCoarseningPolicy;
 
-  typedef Grid::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> OriginalCoarsenedMatrix;
-  typedef Grid::CoarsenedMatrixDevelop<vSpinColourVector, vTComplex, nBasis> DevelopCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>      OneSpinCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>      TwoSpinCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<FourSpinCoarseningPolicy>     FourSpinCoarsenedMatrix;
+  typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>         UpstreamCoarsenedMatrix;
+  typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>         BaselineCoarsenedMatrix;
+  typedef Grid::UpstreamImproved::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> ImprovedCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>                        OneSpinCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>                        TwoSpinCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<FourSpinCoarseningPolicy>                       FourSpinCoarsenedMatrix;
 
-  typedef OriginalCoarsenedMatrix::CoarseVector OriginalCoarseVector;
+  typedef UpstreamCoarsenedMatrix::CoarseVector UpstreamCoarseVector;
+  typedef BaselineCoarsenedMatrix::CoarseVector BaselineCoarseVector;
+  typedef ImprovedCoarsenedMatrix::CoarseVector ImprovedCoarseVector;
   typedef OneSpinCoarsenedMatrix::FermionField  OneSpinCoarseVector;
   typedef TwoSpinCoarsenedMatrix::FermionField  TwoSpinCoarseVector;
   typedef FourSpinCoarsenedMatrix::FermionField FourSpinCoarseVector;
 
-  typedef OriginalCoarsenedMatrix::CoarseMatrix OriginalCoarseLinkField;
+  typedef UpstreamCoarsenedMatrix::CoarseMatrix UpstreamCoarseLinkField;
+  typedef BaselineCoarsenedMatrix::CoarseMatrix BaselineCoarseLinkField;
+  typedef ImprovedCoarsenedMatrix::CoarseMatrix ImprovedCoarseLinkField;
   typedef OneSpinCoarsenedMatrix::LinkField     OneSpinCoarseLinkField;
   typedef TwoSpinCoarsenedMatrix::LinkField     TwoSpinCoarseLinkField;
   typedef FourSpinCoarsenedMatrix::LinkField    FourSpinCoarseLinkField;
 
-  typedef Grid::Aggregation<vSpinColourVector, vTComplex, nBasis> OriginalAggregation;
-  typedef Grid::AggregationDevelop<vSpinColourVector, vTComplex, nBasis> DevelopAggregation;
-  typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>      OneSpinAggregation;
-  typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>      TwoSpinAggregation;
-  typedef Grid::Rework::Aggregation<FourSpinCoarseningPolicy>     FourSpinAggregation;
+  typedef Grid::Upstream::Aggregation<vSpinColourVector, vTComplex, nBasis>         UpstreamAggregation;
+  typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis>         BaselineAggregation;
+  typedef Grid::UpstreamImproved::Aggregation<vSpinColourVector, vTComplex, nBasis> ImprovedAggregation;
+  typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>                        OneSpinAggregation;
+  typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>                        TwoSpinAggregation;
+  typedef Grid::Rework::Aggregation<FourSpinCoarseningPolicy>                       FourSpinAggregation;
 
   /////////////////////////////////////////////////////////////////////////////
   //                           Setup of Aggregation                          //
   /////////////////////////////////////////////////////////////////////////////
 
-  OriginalAggregation OriginalAggs(CGrid, FGrid, 0);
-  DevelopAggregation  DevelopAggs(CGrid, FGrid, 0);
+  UpstreamAggregation UpstreamAggs(CGrid, FGrid, 0);
+  BaselineAggregation BaselineAggs(CGrid, FGrid, 0);
+  ImprovedAggregation ImprovedAggs(CGrid, FGrid, 0);
   TwoSpinAggregation  TwoSpinAggsDefault(CGrid, FGrid, 0, 0);
   TwoSpinAggregation  TwoSpinAggsFast(CGrid, FGrid, 0, 1);
 
-  OriginalAggs.CreateSubspaceRandom(FPRNG);
+  UpstreamAggs.CreateSubspaceRandom(FPRNG);
   for(int i = 0; i < TwoSpinAggsDefault.Subspace().size(); ++i) {
-    TwoSpinAggsDefault.Subspace()[i] = OriginalAggs.subspace[i];
-    TwoSpinAggsFast.Subspace()[i]    = OriginalAggs.subspace[i];
+    TwoSpinAggsDefault.Subspace()[i] = UpstreamAggs.subspace[i];
+    TwoSpinAggsFast.Subspace()[i]    = UpstreamAggs.subspace[i];
   }
-  performChiralDoubling(OriginalAggs.subspace);
-  for(int i = 0; i < OriginalAggs.subspace.size(); ++i)
-    DevelopAggs.Subspace()[i] = OriginalAggs.subspace[i];
+  for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) {
+    BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
+    ImprovedAggs.subspace[i] = UpstreamAggs.subspace[i];
+  }
+  performChiralDoubling(UpstreamAggs.subspace);
+  performChiralDoubling(BaselineAggs.subspace);
+  performChiralDoubling(ImprovedAggs.subspace);
 
   /////////////////////////////////////////////////////////////////////////////
   //                         Setup of CoarsenedMatrix                        //
   /////////////////////////////////////////////////////////////////////////////
 
-  OriginalCoarsenedMatrix OriginalCMat(*CGrid, 0);
-  DevelopCoarsenedMatrix  DevelopCMat(*CGrid, *CrbGrid, 0);
+  UpstreamCoarsenedMatrix UpstreamCMat(*CGrid, 0);           // hermitian = 0
+  BaselineCoarsenedMatrix BaselineCMat(*CGrid, *CrbGrid, 0); // hermitian = 0
+  ImprovedCoarsenedMatrix ImprovedCMat(*CGrid, 0);           // hermitian = 0
   TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel0(*CGrid, *CrbGrid, 0, 0); // speedLevel = 0, hermitian = 0
   TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel1(*CGrid, *CrbGrid, 1, 0); // speedLevel = 1, hermitian = 0
   TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel2(*CGrid, *CrbGrid, 2, 0); // speedLevel = 2, hermitian = 0
@@ -182,7 +197,7 @@ int main(int argc, char** argv) {
   //            Calculate performance figures for instrumentation            //
   /////////////////////////////////////////////////////////////////////////////
 
-  double nStencil   = OriginalCMat.geom.npoint;
+  double nStencil   = UpstreamCMat.geom.npoint;
   double nAccum     = nStencil;
   double FSiteElems = Nc * Ns;
   double CSiteElems = nBasis;
@@ -190,10 +205,10 @@ int main(int argc, char** argv) {
   double FVolume = std::accumulate(FGrid->_fdimensions.begin(), FGrid->_fdimensions.end(), 1, std::multiplies<double>());
   double CVolume = std::accumulate(CGrid->_fdimensions.begin(), CGrid->_fdimensions.end(), 1, std::multiplies<double>());
 
-#if 0 // TOOD: DELETE AGAIN
-  for(int p = 0; p < DevelopCMat.geom.npoint; ++p) {
-    random(CPRNG, DevelopCMat.A[p]);
-    convertLayout(DevelopCMat.A[p], TwoSpinCMatSpeedLevel0.Y_[p]);
+#if 0 // TODO DELETE AGAIN
+  for(int p = 0; p < BaselineCMat.geom.npoint; ++p) {
+    random(CPRNG, BaselineCMat.A[p]);
+    convertLayout(BaselineCMat.A[p], TwoSpinCMatSpeedLevel0.Y_[p]);
   }
 #else
   {
@@ -209,68 +224,78 @@ int main(int argc, char** argv) {
     TwoSpinCoarsenedMatrix& TwoSpinCMatSpeedLevel1FastProjects    = TwoSpinCMatSpeedLevel1;
     TwoSpinCoarsenedMatrix& TwoSpinCMatSpeedLevel2DefaultProjects = TwoSpinCMatSpeedLevel2;
     TwoSpinCoarsenedMatrix& TwoSpinCMatSpeedLevel2FastProjects    = TwoSpinCMatSpeedLevel2;
-    OriginalCoarseLinkField CoarseLFOriginalTmp(CGrid);
+    BaselineCoarseLinkField CoarseLFBaselineTmp(CGrid);
 
     double flop = 0; // TODO
     double byte = 0; // TODO
 
-    // NOTE: For some reason, this binary crashes on GPU with a bus error when I uncomment this
-    BenchmarkFunction(OriginalCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, OriginalAggs);
-    auto profResults = OriginalCMat.GetProfile(); OriginalCMat.ResetProfile();
+    BenchmarkFunction(BaselineCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, BaselineAggs);
+    auto profResults = BaselineCMat.GetProfile(); BaselineCMat.ResetProfile();
     prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
 
-    BenchmarkFunction(DevelopCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, DevelopAggs);
-    std::cout << GridLogMessage << "Deviations of state develop from state in feature/hdcr" << std::endl;
-    for(int p = 0; p < DevelopCMat.geom.npoint; ++p) {
-      printDeviationFromReference(tol, OriginalCMat.A[p], DevelopCMat.A[p]);
+    // NOTE: For some reason, this binary crashes on GPU with a bus error when I uncomment this
+    BenchmarkFunction(UpstreamCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, UpstreamAggs);
+    profResults = UpstreamCMat.GetProfile(); UpstreamCMat.ResetProfile();
+    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
+    std::cout << GridLogMessage << "Deviations of upstream from baseline" << std::endl;
+    for(int p = 0; p < BaselineCMat.geom.npoint; ++p) {
+      printDeviationFromReference(tol, BaselineCMat.A[p], UpstreamCMat.A[p]);
+    }
+
+    BenchmarkFunction(ImprovedCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, ImprovedAggs);
+    profResults = ImprovedCMat.GetProfile(); ImprovedCMat.ResetProfile();
+    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
+    std::cout << GridLogMessage << "Deviations of improvedupstream from baseline" << std::endl;
+    for(int p = 0; p < BaselineCMat.geom.npoint; ++p) {
+      printDeviationFromReference(tol, BaselineCMat.A[p], ImprovedCMat.A[p]);
     }
 
     // BenchmarkFunction(TwoSpinCMatSpeedLevel0DefaultProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsDefault);
     // auto profResults = TwoSpinCMatSpeedLevel0DefaultProjects.GetProfile(); TwoSpinCMatSpeedLevel0DefaultProjects.ResetProfile();
     // prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-    // std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 0, default projects) from original layout" << std::endl;
-    // for(int p = 0; p < DevelopCMat.geom.npoint; ++p) {
-    //   convertLayout(TwoSpinCMatSpeedLevel0DefaultProjects.Y_[p], CoarseLFOriginalTmp); printDeviationFromReference(tol, DevelopCMat.A[p], CoarseLFOriginalTmp);
+    // std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 0, default projects) from baseline" << std::endl;
+    // for(int p = 0; p < BaselineCMat.geom.npoint; ++p) {
+    //   convertLayout(TwoSpinCMatSpeedLevel0DefaultProjects.Y_[p], CoarseLFBaselineTmp); printDeviationFromReference(tol, BaselineCMat.A[p], CoarseLFBaselineTmp);
     // }
 
     BenchmarkFunction(TwoSpinCMatSpeedLevel0FastProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsFast);
     profResults = TwoSpinCMatSpeedLevel0FastProjects.GetProfile(); TwoSpinCMatSpeedLevel0FastProjects.ResetProfile();
     prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-    std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 0, fast projects) from original layout" << std::endl;
-    for(int p = 0; p < DevelopCMat.geom.npoint; ++p) {
-      convertLayout(TwoSpinCMatSpeedLevel0FastProjects.Y_[p], CoarseLFOriginalTmp); printDeviationFromReference(tol, DevelopCMat.A[p], CoarseLFOriginalTmp);
+    std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 0, fast projects) from baseline" << std::endl;
+    for(int p = 0; p < BaselineCMat.geom.npoint; ++p) {
+      convertLayout(TwoSpinCMatSpeedLevel0FastProjects.Y_[p], CoarseLFBaselineTmp); printDeviationFromReference(tol, BaselineCMat.A[p], CoarseLFBaselineTmp);
     }
 
     // BenchmarkFunction(TwoSpinCMatSpeedLevel1DefaultProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsDefault);
     // profResults = TwoSpinCMatSpeedLevel1DefaultProjects.GetProfile(); TwoSpinCMatSpeedLevel1DefaultProjects.ResetProfile();
     // prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-    // std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 1, default projects) from original layout" << std::endl;
-    // for(int p = 0; p < DevelopCMat.geom.npoint; ++p) {
-    //   convertLayout(TwoSpinCMatSpeedLevel1DefaultProjects.Y_[p], CoarseLFOriginalTmp); printDeviationFromReference(tol, DevelopCMat.A[p], CoarseLFOriginalTmp);
+    // std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 1, default projects) from baseline" << std::endl;
+    // for(int p = 0; p < BaselineCMat.geom.npoint; ++p) {
+    //   convertLayout(TwoSpinCMatSpeedLevel1DefaultProjects.Y_[p], CoarseLFBaselineTmp); printDeviationFromReference(tol, BaselineCMat.A[p], CoarseLFBaselineTmp);
     // }
 
     BenchmarkFunction(TwoSpinCMatSpeedLevel1FastProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsFast);
     profResults = TwoSpinCMatSpeedLevel1FastProjects.GetProfile(); TwoSpinCMatSpeedLevel1FastProjects.ResetProfile();
     prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-    std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 1, fast projects) from original layout" << std::endl;
-    for(int p = 0; p < DevelopCMat.geom.npoint; ++p) {
-      convertLayout(TwoSpinCMatSpeedLevel1FastProjects.Y_[p], CoarseLFOriginalTmp); printDeviationFromReference(tol, DevelopCMat.A[p], CoarseLFOriginalTmp);
+    std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 1, fast projects) from baseline" << std::endl;
+    for(int p = 0; p < BaselineCMat.geom.npoint; ++p) {
+      convertLayout(TwoSpinCMatSpeedLevel1FastProjects.Y_[p], CoarseLFBaselineTmp); printDeviationFromReference(tol, BaselineCMat.A[p], CoarseLFBaselineTmp);
     }
 
     // BenchmarkFunction(TwoSpinCMatSpeedLevel2DefaultProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsDefault);
     // profResults = TwoSpinCMatSpeedLevel2DefaultProjects.GetProfile(); TwoSpinCMatSpeedLevel2DefaultProjects.ResetProfile();
     // prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-    // std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 2, default projects) from original layout" << std::endl;
-    // for(int p = 0; p < DevelopCMat.geom.npoint; ++p) {
-    //   convertLayout(TwoSpinCMatSpeedLevel2DefaultProjects.Y_[p], CoarseLFOriginalTmp); printDeviationFromReference(tol, DevelopCMat.A[p], CoarseLFOriginalTmp);
+    // std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 2, default projects) from baseline" << std::endl;
+    // for(int p = 0; p < BaselineCMat.geom.npoint; ++p) {
+    //   convertLayout(TwoSpinCMatSpeedLevel2DefaultProjects.Y_[p], CoarseLFBaselineTmp); printDeviationFromReference(tol, BaselineCMat.A[p], CoarseLFBaselineTmp);
     // }
 
     BenchmarkFunction(TwoSpinCMatSpeedLevel2FastProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsFast);
     profResults = TwoSpinCMatSpeedLevel2FastProjects.GetProfile(); TwoSpinCMatSpeedLevel2FastProjects.ResetProfile();
     prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-    std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 2, fast projects) from original layout" << std::endl;
-    for(int p = 0; p < DevelopCMat.geom.npoint; ++p) {
-      convertLayout(TwoSpinCMatSpeedLevel2FastProjects.Y_[p], CoarseLFOriginalTmp); printDeviationFromReference(tol, DevelopCMat.A[p], CoarseLFOriginalTmp);
+    std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 2, fast projects) from baseline" << std::endl;
+    for(int p = 0; p < BaselineCMat.geom.npoint; ++p) {
+      convertLayout(TwoSpinCMatSpeedLevel2FastProjects.Y_[p], CoarseLFBaselineTmp); printDeviationFromReference(tol, BaselineCMat.A[p], CoarseLFBaselineTmp);
     }
   }
 #endif
@@ -281,23 +306,21 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
-    OriginalCoarseVector CoarseVecOriginalIn(CGrid);  random(CPRNG, CoarseVecOriginalIn);
-    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecOriginalIn, CoarseVecTwospinIn);
-    OriginalCoarseVector CoarseVecOriginalOut(CGrid); CoarseVecOriginalOut = Zero();
+    UpstreamCoarseVector CoarseVecUpstreamIn(CGrid);  random(CPRNG, CoarseVecUpstreamIn);
+    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecUpstreamIn, CoarseVecTwospinIn);
+    UpstreamCoarseVector CoarseVecUpstreamOut(CGrid); CoarseVecUpstreamOut = Zero();
     TwoSpinCoarseVector  CoarseVecTwospinOut(CGrid);  CoarseVecTwospinOut  = Zero();
-    OriginalCoarseVector CoarseVecOriginalTmp(CGrid);
+    UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
     // clang-format on
 
     double flop = CVolume * ((nStencil * (8 * CSiteElems * CSiteElems - 2 * CSiteElems) + nAccum * 2 * CSiteElems) + 8 * CSiteElems);
     double byte = CVolume * ((nStencil * (CSiteElems * CSiteElems + CSiteElems) + CSiteElems) + CSiteElems) * sizeof(Complex);
 
-  std::cout << "before" << std::endl;
-    BenchmarkFunction(OriginalCMat.M,           flop, byte, nIter, CoarseVecOriginalIn, CoarseVecOriginalOut);
-  std::cout << "after" << std::endl;
+    BenchmarkFunction(UpstreamCMat.M,           flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
     BenchmarkFunction(TwoSpinCMatSpeedLevel2.M, flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
-    convertLayout(CoarseVecTwospinOut, CoarseVecOriginalTmp);
-    printDeviationFromReference(tol, CoarseVecOriginalOut, CoarseVecOriginalTmp);
+    convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
+    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
   }
 
   {
@@ -306,22 +329,22 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
-    OriginalCoarseVector CoarseVecOriginalIn(CGrid);  random(CPRNG, CoarseVecOriginalIn);
-    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecOriginalIn, CoarseVecTwospinIn);
-    OriginalCoarseVector CoarseVecOriginalOut(CGrid); CoarseVecOriginalOut = Zero();
+    UpstreamCoarseVector CoarseVecUpstreamIn(CGrid);  random(CPRNG, CoarseVecUpstreamIn);
+    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecUpstreamIn, CoarseVecTwospinIn);
+    UpstreamCoarseVector CoarseVecUpstreamOut(CGrid); CoarseVecUpstreamOut = Zero();
     TwoSpinCoarseVector  CoarseVecTwospinOut(CGrid);  CoarseVecTwospinOut  = Zero();
-    OriginalCoarseVector CoarseVecOriginalTmp(CGrid);
+    UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
     // clang-format on
 
     // NOTE: these values are based on Galerkin coarsening, i.e., Mdag = g5c * M * g5c
     double flop = CVolume * ((nStencil * (8 * CSiteElems * CSiteElems - 2 * CSiteElems) + nAccum * 2 * CSiteElems) + 8 * CSiteElems) + 2 * CVolume * (3 * CSiteElems);
     double byte = CVolume * ((nStencil * (CSiteElems * CSiteElems + CSiteElems) + CSiteElems) + CSiteElems) * sizeof(Complex) + 2 * CVolume * (3 * CSiteElems) * sizeof(Complex);
 
-    BenchmarkFunction(OriginalCMat.Mdag,           flop, byte, nIter, CoarseVecOriginalIn, CoarseVecOriginalOut);
+    BenchmarkFunction(UpstreamCMat.Mdag,           flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
     BenchmarkFunction(TwoSpinCMatSpeedLevel2.Mdag, flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
-    convertLayout(CoarseVecTwospinOut, CoarseVecOriginalTmp);
-    printDeviationFromReference(tol, CoarseVecOriginalOut, CoarseVecOriginalTmp);
+    convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
+    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
   }
 
   {
@@ -330,21 +353,21 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
-    OriginalCoarseVector CoarseVecOriginalIn(CGrid);  random(CPRNG, CoarseVecOriginalIn);
-    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecOriginalIn, CoarseVecTwospinIn);
-    OriginalCoarseVector CoarseVecOriginalOut(CGrid); CoarseVecOriginalOut = Zero();
+    UpstreamCoarseVector CoarseVecUpstreamIn(CGrid);  random(CPRNG, CoarseVecUpstreamIn);
+    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecUpstreamIn, CoarseVecTwospinIn);
+    UpstreamCoarseVector CoarseVecUpstreamOut(CGrid); CoarseVecUpstreamOut = Zero();
     TwoSpinCoarseVector  CoarseVecTwospinOut(CGrid);  CoarseVecTwospinOut  = Zero();
-    OriginalCoarseVector CoarseVecOriginalTmp(CGrid);
+    UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
     // clang-format on
 
     double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
     double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
 
-    BenchmarkFunction(OriginalCMat.Mdir,           flop, byte, nIter, CoarseVecOriginalIn, CoarseVecOriginalOut, 2, 1);
+    BenchmarkFunction(UpstreamCMat.Mdir,           flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut, 2, 1);
     BenchmarkFunction(TwoSpinCMatSpeedLevel2.Mdir, flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
 
-    convertLayout(CoarseVecTwospinOut, CoarseVecOriginalTmp);
-    printDeviationFromReference(tol, CoarseVecOriginalOut, CoarseVecOriginalTmp);
+    convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
+    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
   }
 
   {
@@ -353,21 +376,21 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
-    OriginalCoarseVector CoarseVecOriginalIn(CGrid);  random(CPRNG, CoarseVecOriginalIn);
-    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecOriginalIn, CoarseVecTwospinIn);
-    OriginalCoarseVector CoarseVecOriginalOut(CGrid); CoarseVecOriginalOut = Zero();
+    UpstreamCoarseVector CoarseVecUpstreamIn(CGrid);  random(CPRNG, CoarseVecUpstreamIn);
+    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecUpstreamIn, CoarseVecTwospinIn);
+    UpstreamCoarseVector CoarseVecUpstreamOut(CGrid); CoarseVecUpstreamOut = Zero();
     TwoSpinCoarseVector  CoarseVecTwospinOut(CGrid);  CoarseVecTwospinOut  = Zero();
-    OriginalCoarseVector CoarseVecOriginalTmp(CGrid);
+    UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
     // clang-format on
 
     double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
     double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
 
-    BenchmarkFunction(OriginalCMat.Mdiag,           flop, byte, nIter, CoarseVecOriginalIn, CoarseVecOriginalOut);
+    BenchmarkFunction(UpstreamCMat.Mdiag,           flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
     BenchmarkFunction(TwoSpinCMatSpeedLevel2.Mdiag, flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
-    convertLayout(CoarseVecTwospinOut, CoarseVecOriginalTmp);
-    printDeviationFromReference(tol, CoarseVecOriginalOut, CoarseVecOriginalTmp);
+    convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
+    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
   }
 
   Grid_finalize();
