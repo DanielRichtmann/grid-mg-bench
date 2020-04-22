@@ -877,11 +877,11 @@ public:
 	
 	  for(int j=0;j<nbasis;j++){
 	    
-	    prof_.Start("CoarsenOperator.ProjectToSubspaceFirst");
+	    prof_.Start("CoarsenOperator.ProjectToSubspaceOuter");
 	    Grid::Upstream::blockMaskedInnerProduct(oZProj,omask,Subspace.subspace[j],Mphi);
-	    prof_.Stop("CoarsenOperator.ProjectToSubspaceFirst");
+	    prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter");
 	    
-	    prof_.Start("CoarsenOperator.ConstructLinksPositive");
+	    prof_.Start("CoarsenOperator.ConstructLinksNegative");
 	    auto iZProj_v = iZProj.View() ;
 	    auto oZProj_v = oZProj.View() ;
 	    auto A_p     =  A[p].View();
@@ -891,7 +891,7 @@ public:
 	    //      if( disp!= 0 ) { accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_p[ss](j,i),oZProj_v(ss)); });}
 	    //	    accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_self[ss](j,i),A_self(ss)(j,i)+iZProj_v(ss)); });
 
-	    prof_.Stop("CoarsenOperator.ConstructLinksPositive");
+	    prof_.Stop("CoarsenOperator.ConstructLinksNegative");
 	  }
 	}
       }
@@ -905,7 +905,7 @@ public:
 	mult(tmp,phi,oddmask );  linop.Op(tmp,Mphio);
 	prof_.Stop("CoarsenOperator.ApplyOpSecond");
 
-	prof_.Start("CoarsenOperator.AccumEO");
+	prof_.Start("CoarsenOperator.AccumInner");
 	{
 	  auto tmp_      = tmp.View();
 	  auto evenmask_ = evenmask.View();
@@ -916,11 +916,11 @@ public:
 	      coalescedWrite(tmp_[ss],evenmask_(ss)*Mphie_(ss) + oddmask_(ss)*Mphio_(ss));
 	    });
 	}
-	prof_.Stop("CoarsenOperator.AccumEO");
+	prof_.Stop("CoarsenOperator.AccumInner");
 
-	prof_.Start("CoarsenOperator.ProjectToSubspaceSecond");
+	prof_.Start("CoarsenOperator.ProjectToSubspaceInner");
 	blockProject(SelfProj,tmp,Subspace.subspace);
-	prof_.Stop("CoarsenOperator.ProjectToSubspaceSecond");
+	prof_.Stop("CoarsenOperator.ProjectToSubspaceInner");
 
 	prof_.Start("CoarsenOperator.ConstructLinksSelf");
 	auto SelfProj_ = SelfProj.View();
