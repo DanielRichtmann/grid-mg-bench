@@ -280,7 +280,8 @@ public:
 // Fine Object == (per site) type of fine field
 // nbasis      == number of deflation vectors
 template<class Fobj,class CComplex,int nbasis>
-class CoarsenedMatrix : public CheckerBoardedSparseMatrixBase<Lattice<iVector<CComplex,nbasis > > >  {
+class CoarsenedMatrix : public CheckerBoardedSparseMatrixBase<Lattice<iVector<CComplex,nbasis > > >
+                      , public Rework::Profileable {
 public:
 
   typedef iVector<CComplex,nbasis >             siteVector;
@@ -583,6 +584,8 @@ public:
 
   void CoarsenOperator(GridBase *FineGrid,LinearOperatorBase<Lattice<Fobj> > &linop,
 		       Aggregation<Fobj,CComplex,nbasis> & Subspace){
+    prof_.Start("CoarsenOperator.Total");
+    prof_.Start("CoarsenOperator.Misc");
 
     FineField iblock(FineGrid); // contributions from within this block
     FineField oblock(FineGrid); // contributions from outwith this block
@@ -611,31 +614,39 @@ public:
       }
     }
     assert(self_stencil!=-1);
+    prof_.Stop("CoarsenOperator.Misc");
 
     for(int i=0;i<nbasis;i++){
+      prof_.Start("CoarsenOperator.Copy");
       phi=Subspace.subspace[i];
+      prof_.Stop("CoarsenOperator.Copy");
 
       std::cout<<GridLogMessage<<"("<<i<<").."<<std::endl;
 
       for(int p=0;p<geom.npoint;p++){
 
+        prof_.Start("CoarsenOperator.LatticeCoordinate");
 	int dir   = geom.directions[p];
 	int disp  = geom.displacements[p];
 
 	Integer block=(FineGrid->_rdimensions[dir])/(Grid()->_rdimensions[dir]);
 
 	LatticeCoordinate(coor,dir);
+        prof_.Stop("CoarsenOperator.LatticeCoordinate");
 
+        prof_.Start("CoarsenOperator.ApplyOp");
 	if ( disp==0 ){
 	  linop.OpDiag(phi,Mphi);
 	}
 	else  {
 	  linop.OpDir(phi,Mphi,dir,disp);
 	}
+        prof_.Stop("CoarsenOperator.ApplyOp");
 
 	////////////////////////////////////////////////////////////////////////
 	// Pick out contributions coming from this cell and neighbour cell
 	////////////////////////////////////////////////////////////////////////
+        prof_.Start("CoarsenOperator.PickBlocks");
 	if ( disp==0 ) {
 	  iblock = Mphi;
 	  oblock = Zero();
@@ -648,11 +659,15 @@ public:
 	} else {
 	  assert(0);
 	}
+        prof_.Stop("CoarsenOperator.PickBlocks");
 
+        prof_.Start("CoarsenOperator.ProjectToSubspace");
 	Subspace.ProjectToSubspace(iProj,iblock);
 	Subspace.ProjectToSubspace(oProj,oblock);
+        prof_.Stop("CoarsenOperator.ProjectToSubspace");
 	//	  blockProject(iProj,iblock,Subspace.subspace);
 	//	  blockProject(oProj,oblock,Subspace.subspace);
+        prof_.Start("CoarsenOperator.ConstructLinks");
 	auto iProj_v = iProj.View() ;
 	auto oProj_v = oProj.View() ;
 	auto A_p     =  A[p].View();
@@ -665,6 +680,7 @@ public:
 	    A_self[ss](j,i) =	A_self[ss](j,i) + iProj_v[ss](j);
 	  }
 	});
+        prof_.Stop("CoarsenOperator.ConstructLinks");
       }
     }
 
@@ -692,6 +708,10 @@ public:
       //      ForceHermitian();
       // AssertHermitian();
       // ForceDiagonal();
+
+    InvertSelfStencilPoint();
+    FillHalfCbs();
+    prof_.Stop("CoarsenOperator.Total");
   }
 
   void ForceHermitian(void) {
@@ -723,6 +743,7 @@ public:
   }
     
   void InvertSelfStencilPoint() {
+    prof_.Start("CoarsenOperator.InvertSelfStencilPoint");
     int localVolume = Grid()->lSites();
 
     using scalar_object = typename iMatrix<CComplex, nbasis>::scalar_object;
@@ -753,15 +774,18 @@ public:
 
       pokeLocalSite(InvSelfStencilLink, SelfStencilLinkInv, lcoor);
     });
+    prof_.Stop("CoarsenOperator.InvertSelfStencilPoint");
   }
 
   void FillHalfCbs() {
+    prof_.Start("CoarsenOperator.FillHalfCbs");
     for(int p = 0; p < geom.npoint; p++) {
       pickCheckerboard(Even, AEven[p], A[p]);
       pickCheckerboard(Odd, AOdd[p], A[p]);
     }
     pickCheckerboard(Even, SelfStencilLinkInvEven, SelfStencilLinkInv);
     pickCheckerboard(Odd, SelfStencilLinkInvOdd, SelfStencilLinkInv);
+    prof_.Stop("CoarsenOperator.FillHalfCbs");
   }
 
   void MdirAll(const CoarseVector &in, std::vector<CoarseVector> &out) {}
