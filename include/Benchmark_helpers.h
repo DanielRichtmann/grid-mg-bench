@@ -129,9 +129,7 @@ void printDeviationFromReference(RealD tolerance, Field const& reference, Field 
   conformable(reference.Grid(), result.Grid());
   Field diff(reference.Grid());
 
-  std::cout << "before" << std::endl;
   diff        = reference - result;
-  std::cout << "after" << std::endl;
   auto absDev = norm2(diff);
   auto relDev = absDev / norm2(reference);
   std::cout << GridLogMessage << "absolute deviation = " << absDev << " | relative deviation = " << relDev;
