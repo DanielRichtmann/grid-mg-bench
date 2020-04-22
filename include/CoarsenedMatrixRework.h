@@ -498,9 +498,15 @@ public:
             prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter", Ns_c);
           }
 
-          prof_.Start("CoarsenOperator.ConstructLinksPositiveAndSelf");
-          Kernels::constructLinksSavingDirections(i, p, disp, self_stencil, Y_, iProjSplit, oProjSplit);
-          prof_.Stop("CoarsenOperator.ConstructLinksPositiveAndSelf");
+          if(p == self_stencil) {
+            prof_.Start("CoarsenOperator.ConstructLinksSelf");
+            Kernels::constructLinkField(i, Y_[self_stencil], iProjSplit);
+            prof_.Stop("CoarsenOperator.ConstructLinksSelf");
+          } else if(disp == +1) {
+            prof_.Start("CoarsenOperator.ConstructLinksPositive");
+            Kernels::constructLinkField(i, Y_[p], oProjSplit);
+            prof_.Stop("CoarsenOperator.ConstructLinksPositive");
+          }
         }
       } else if(speedLevel_ == 2) { // save projects & save applications of backward links
         assert(self_stencil == geom_.npoint - 1); // only works if self stencil is last in the list <- TODO is this true here?
@@ -549,9 +555,15 @@ public:
             prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter", Ns_c);
           }
 
-          prof_.Start("CoarsenOperator.ConstructLinksPositiveAndSelf");
-          Kernels::constructLinksSavingDirections(i, p, disp, self_stencil, Y_, iProjSplit, oProjSplit);
-          prof_.Stop("CoarsenOperator.ConstructLinksPositiveAndSelf");
+          if(p == self_stencil) {
+            prof_.Start("CoarsenOperator.ConstructLinksSelf");
+            Kernels::constructLinkField(i, Y_[self_stencil], iProjSplit);
+            prof_.Stop("CoarsenOperator.ConstructLinksSelf");
+          } else if(disp == +1) {
+            prof_.Start("CoarsenOperator.ConstructLinksPositive");
+            Kernels::constructLinkField(i, Y_[p], oProjSplit);
+            prof_.Stop("CoarsenOperator.ConstructLinksPositive");
+          }
         }
       }
     }

@@ -123,43 +123,17 @@ public:
     });
   }
 
-  static void constructLinksSavingDirections(int                              i,
-                                             int                              p,
-                                             int                              disp,
-                                             int                              self_stencil,
-                                             std::vector<LinkField>&          Y,
-                                             std::vector<FermionField> const& iProjSplit,
-                                             std::vector<FermionField> const& oProjSplit) {
-    auto Y_p_v    = Y[p].View();
-    auto Y_self_v = Y[self_stencil].View();
+  static void constructLinkField(int i, LinkField& Yp, std::vector<FermionField> const& projSplit) {
+    auto  Yp_v            = Yp.View();
+    auto  projSplit_v_c   = getViewContainer(projSplit);
+    auto* projSplit_v_c_p = &projSplit_v_c[0];
 
-    auto iProjSplit_v_c = getViewContainer(iProjSplit);
-    auto oProjSplit_v_c = getViewContainer(oProjSplit);
-
-    auto* iProjSplit_v_c_p = &iProjSplit_v_c[0];
-    auto* oProjSplit_v_c_p = &oProjSplit_v_c[0];
-
-    accelerator_for(ss, Y[p].Grid()->oSites(), Simd::Nsimd(), {
+    accelerator_for(ss, Yp.Grid()->oSites(), Simd::Nsimd(), {
       for(int j = 0; j < Nc_c; ++j) {
-        // NOTE: This also breaks if self stencil is not the last point, but asserted in calling code
-        if(p == self_stencil) {
-          auto Y_self_t = Y_self_v(ss);
-          for(int k = 0; k < Ns_c; ++k) {
-            auto iProjSplit_t = coalescedRead(iProjSplit_v_c_p[k][ss]);
-            for(int l = 0; l < Ns_c; ++l)
-              Y_self_t()(l, k)(j, i) = Y_self_t()(l, k)(j, i) + iProjSplit_t()(l)(j);
-          }
-          coalescedWrite(Y_self_v[ss], Y_self_t);
-        }
-
-        if(disp == +1) {
-          auto Y_p_t = Y_p_v(ss);
-          for(int k = 0; k < Ns_c; ++k) {
-            auto oProjSplit_t = coalescedRead(oProjSplit_v_c_p[k][ss]);
-            for(int l = 0; l < Ns_c; ++l)
-              Y_p_t()(l, k)(j, i) = oProjSplit_t()(l)(j);
-          }
-          coalescedWrite(Y_p_v[ss], Y_p_t);
+        for(int k = 0; k < Ns_c; ++k) {
+          auto projSplit_t = coalescedRead(projSplit_v_c_p[k][ss]);
+          for(int l = 0; l < Ns_c; ++l)
+            coalescedWrite(Yp_v[ss]()(l, k)(j, i), projSplit_t()(l)(j));
         }
       }
     });
