@@ -39,11 +39,12 @@ Author: paboyle <paboyle@ph.ed.ac.uk>
     See the full license in the file "LICENSE" in the top level distribution directory
 *************************************************************************************/
 /*  END LEGAL */
-#ifndef  GRID_ALGORITHM_COARSENED_MATRIX_H
-#define  GRID_ALGORITHM_COARSENED_MATRIX_H
+#ifndef  GRID_ALGORITHM_COARSENED_MATRIX_UPSTREAM_H
+#define  GRID_ALGORITHM_COARSENED_MATRIX_UPSTREAM_H
 
 
 NAMESPACE_BEGIN(Grid);
+NAMESPACE_BEGIN(Upstream);
 
 template<class vobj,class CComplex>
 inline void blockMaskedInnerProduct(Lattice<CComplex> &CoarseInner,
@@ -799,7 +800,7 @@ public:
     CoarseScalar InnerProd(Grid()); 
 
     // Orthogonalise the subblocks over the basis
-    blockOrthogonalise(InnerProd,Subspace.subspace);
+    // blockOrthogonalise(InnerProd,Subspace.subspace); // NOTE: commented for comparisons to work, should be done outside anyway
 
     // Compute the matrix elements of linop between this orthonormal
     // set of vectors.
@@ -862,7 +863,7 @@ public:
 	
 	  for(int j=0;j<nbasis;j++){
 	    
-	    blockMaskedInnerProduct(oZProj,omask,Subspace.subspace[j],Mphi);
+	    Grid::Upstream::blockMaskedInnerProduct(oZProj,omask,Subspace.subspace[j],Mphi);
 	    
 	    auto iZProj_v = iZProj.View() ;
 	    auto oZProj_v = oZProj.View() ;
@@ -981,5 +982,6 @@ public:
     
 };
 
+NAMESPACE_END(Upstream);
 NAMESPACE_END(Grid);
 #endif
