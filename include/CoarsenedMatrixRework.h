@@ -549,7 +549,7 @@ public:
 
     if(speedLevel_ > 0) {
       prof_.Start("CoarsenOperator.ConstructLinksNegative");
-      Kernels::shiftLinks(geom_, Y_);
+      Kernels::shiftLinks(geom_, Y_, +1);
       prof_.Stop("CoarsenOperator.ConstructLinksNegative");
     }
 

@@ -165,13 +165,15 @@ public:
     });
   }
 
-  static void shiftLinks(Geometry& geom, std::vector<LinkField>& Y) {
+  static void shiftLinks(Geometry& geom, std::vector<LinkField>& Y, int dispHave) {
+    assert(dispHave == +1 || dispHave == -1);
     // Relation between forward and backward link matrices taken from M. Rottmann's PHD thesis:
     // D_{A_{q,\kappa}, A_{p,\tau}} = - D^\dag_{A_{p,\tau}, A_{q,\kappa}}
+    int dispWant = dispHave * -1;
     for(int p = 0; p < geom.npoint; ++p) {
       int dir  = geom.directions[p];
       int disp = geom.displacements[p];
-      if(disp == +1) {
+      if(disp == dispHave) {
         auto tmp   = adj(Y[p]);
         auto tmp_v = tmp.View();
         accelerator_for(ss, tmp.Grid()->oSites(), Simd::Nsimd(), {
@@ -185,8 +187,8 @@ public:
           }
           coalescedWrite(tmp_v[ss], tmp_t);
         });
-        int p_partner = geom.PointFromDirDisp(dir, -1);
-        Y[p_partner] = Cshift(tmp, dir, -1);
+        int p_partner = geom.PointFromDirDisp(dir, dispWant);
+        Y[p_partner] = Cshift(tmp, dir, dispWant);
       }
     }
   }
