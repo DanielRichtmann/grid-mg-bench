@@ -439,7 +439,7 @@ public:
       std::cout << GridLogMessage << "(" << i << ") .." << std::endl;
 
       if(speedLevel_ == 0) { // no optimizations
-        prof_.Start("CoarsenOperator.ApplyOp");
+        prof_.Start("CoarsenOperator.ApplyOpFirst");
         for(int p = 0; p < geom_.npoint; ++p) {
           int dir  = geom_.directions[p];
           int disp = geom_.displacements[p];
@@ -447,23 +447,26 @@ public:
           if(disp == 0) k_loop_Ns_c LinOp.OpDiag(phiSplit[k], MphiSplit[p * Ns_c + k]);
           else          k_loop_Ns_c LinOp.OpDir(phiSplit[k], MphiSplit[p * Ns_c + k], dir, disp);
         }
-        prof_.Stop("CoarsenOperator.ApplyOp", Ns_c);
+        prof_.Stop("CoarsenOperator.ApplyOpFirst", Ns_c);
 
         for(int p = 0; p < geom_.npoint; ++p) {
           int dir  = geom_.directions[p];
           int disp = geom_.displacements[p];
 
-          prof_.Start("CoarsenOperator.ProjectToSubspace");
+          prof_.Start("CoarsenOperator.ProjectToSubspaceInner");
           k_loop_Ns_c Projector.ProjectToSubspace(iProjSplit[k], MphiSplit[p * Ns_c + k], iLut[p]);
+          prof_.Stop("CoarsenOperator.ProjectToSubspaceInner", Ns_c);
+          prof_.Start("CoarsenOperator.ProjectToSubspaceOuter");
           k_loop_Ns_c Projector.ProjectToSubspace(oProjSplit[k], MphiSplit[p * Ns_c + k], oLut[p]);
-          prof_.Stop("CoarsenOperator.ProjectToSubspace", Ns_c);
+          prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter", Ns_c);
 
           prof_.Start("CoarsenOperator.ConstructLinksFull");
           Kernels::constructLinksFull(i, p, disp, self_stencil, Y_, iProjSplit, oProjSplit);
           prof_.Stop("CoarsenOperator.ConstructLinksFull");
         }
       } else if(speedLevel_ == 1) { // save projects by summing up inner contributions before projecting
-        prof_.Start("CoarsenOperator.ApplyOp");
+        assert(self_stencil == geom_.npoint - 1); // only works if self stencil is last in the list
+        prof_.Start("CoarsenOperator.ApplyOpFirst");
         for(int p = 0; p < geom_.npoint; ++p) {
           int dir  = geom_.directions[p];
           int disp = geom_.displacements[p];
@@ -471,7 +474,7 @@ public:
           if(disp == 0) k_loop_Ns_c LinOp.OpDiag(phiSplit[k], MphiSplit[p * Ns_c + k]);
           else          k_loop_Ns_c LinOp.OpDir(phiSplit[k], MphiSplit[p * Ns_c + k], dir, disp);
         }
-        prof_.Stop("CoarsenOperator.ApplyOp", Ns_c);
+        prof_.Stop("CoarsenOperator.ApplyOpFirst", Ns_c);
 
         k_loop_Ns_c iSum[k] = Zero();
 
@@ -479,7 +482,7 @@ public:
           int dir  = geom_.directions[p];
           int disp = geom_.displacements[p];
 
-          prof_.Start("CoarsenOperator.AccumInnerContrib");
+          prof_.Start("CoarsenOperator.AccumInner");
           k_loop_Ns_c mult(calcTmp[k], MphiSplit[p * Ns_c + k], innerSites[p]);
           k_loop_Ns_c iSum[k] = iSum[k] + calcTmp[k];
           // k_loop_Ns_c iSum[k] = iSum[k] + where(TensorRemove(innerSites[p]) == vComplex(1), MphiSplit[p * Ns_c + k], zero);
@@ -488,32 +491,42 @@ public:
           // k_loop_Ns_c iSum[k] = iSum[k] + where(innerSites[p] == vComplex(1), MphiSplit[p * Ns_c + k], zero);
           // k_loop_Ns_c iSum[k] = iSum[k] + where(innerSites[p] == 1, MphiSplit[p * Ns_c + k], zero);
           // k_loop_Ns_c iSum[k] = iSum[k] + where(innerSites[p] == typename FineSiteScalar::vector_type(1), MphiSplit[p * Ns_c + k], zero);
-          prof_.Stop("CoarsenOperator.AccumInnerContrib", Ns_c);
+          prof_.Stop("CoarsenOperator.AccumInner", Ns_c);
 
-          prof_.Start("CoarsenOperator.ProjectToSubspace");
-          assert(self_stencil == geom_.npoint - 1);
-          if     (p == self_stencil) k_loop_Ns_c Projector.ProjectToSubspace(iProjSplit[k], iSum[k], iLut[p]);
-          else if(disp == +1)        k_loop_Ns_c Projector.ProjectToSubspace(oProjSplit[k], MphiSplit[p * Ns_c + k], oLut[p]);
-          prof_.Stop("CoarsenOperator.ProjectToSubspace", Ns_c);
+          if(p == self_stencil) {
+            prof_.Start("CoarsenOperator.ProjectToSubspaceInner");
+            k_loop_Ns_c Projector.ProjectToSubspace(iProjSplit[k], iSum[k], iLut[p]);
+            prof_.Stop("CoarsenOperator.ProjectToSubspaceInner", Ns_c);
+          }
+          else if(disp == +1) {
+            prof_.Start("CoarsenOperator.ProjectToSubspaceOuter");
+            k_loop_Ns_c Projector.ProjectToSubspace(oProjSplit[k], MphiSplit[p * Ns_c + k], oLut[p]);
+            prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter", Ns_c);
+          }
 
-          prof_.Start("CoarsenOperator.ConstructLinksPositive");
+          prof_.Start("CoarsenOperator.ConstructLinksPositiveAndSelf");
           Kernels::constructLinksSavingDirections(i, p, disp, self_stencil, Y_, iProjSplit, oProjSplit);
-          prof_.Stop("CoarsenOperator.ConstructLinksPositive");
+          prof_.Stop("CoarsenOperator.ConstructLinksPositiveAndSelf");
         }
       } else if(speedLevel_ == 2) { // save projects & save applications of backward links
-        prof_.Start("CoarsenOperator.ApplyOp");
+        assert(self_stencil == geom_.npoint - 1); // only works if self stencil is last in the list <- TODO is this true here?
+        prof_.Start("CoarsenOperator.ApplyOpFirst");
         for(int p = 0; p < geom_.npoint; ++p) {
           int dir  = geom_.directions[p];
           int disp = geom_.displacements[p];
 
           if(disp == +1) k_loop_Ns_c LinOp.OpDir(phiSplit[k], MphiSplit[p * Ns_c + k], dir, disp);
         }
+        prof_.Stop("CoarsenOperator.ApplyOpFirst", Ns_c);
 
+        prof_.Start("CoarsenOperator.ApplyOpSecond");
         k_loop_Ns_c mult(iSum[k], phiSplit[k], evenBlocks);
         k_loop_Ns_c LinOp.Op(iSum[k], MphiSplit_e[k]);
         k_loop_Ns_c mult(iSum[k], phiSplit[k], oddBlocks);
         k_loop_Ns_c LinOp.Op(iSum[k], MphiSplit_o[k]);
+        prof_.Stop("CoarsenOperator.ApplyOpSecond", Ns_c);
 
+        prof_.Start("CoarsenOperator.AccumInner");
         {
           for(int k = 0; k < Ns_c; ++k) {
             auto iSum_v        = iSum[k].View();
@@ -526,21 +539,25 @@ public:
             });
           }
         }
-        prof_.Stop("CoarsenOperator.ApplyOp", Ns_c);
+        prof_.Stop("CoarsenOperator.AccumInner", Ns_c);
 
         for(int p = 0; p < geom_.npoint; ++p) {
           int dir  = geom_.directions[p];
           int disp = geom_.displacements[p];
 
-          prof_.Start("CoarsenOperator.ProjectToSubspace");
-          assert(self_stencil == geom_.npoint - 1);
-          if(p == self_stencil) k_loop_Ns_c Projector.ProjectToSubspace(iProjSplit[k], iSum[k], iLut[p]);
-          else if(disp == +1)   k_loop_Ns_c Projector.ProjectToSubspace(oProjSplit[k], MphiSplit[p * Ns_c + k], oLut[p]);
-          prof_.Stop("CoarsenOperator.ProjectToSubspace", Ns_c);
+          if(p == self_stencil) {
+            prof_.Start("CoarsenOperator.ProjectToSubspaceInner");
+            k_loop_Ns_c Projector.ProjectToSubspace(iProjSplit[k], iSum[k], iLut[p]);
+            prof_.Stop("CoarsenOperator.ProjectToSubspaceInner", Ns_c);
+          } else if(disp == +1) {
+            prof_.Start("CoarsenOperator.ProjectToSubspaceOuter");
+            k_loop_Ns_c Projector.ProjectToSubspace(oProjSplit[k], MphiSplit[p * Ns_c + k], oLut[p]);
+            prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter", Ns_c);
+          }
 
-          prof_.Start("CoarsenOperator.ConstructLinksPositive");
+          prof_.Start("CoarsenOperator.ConstructLinksPositiveAndSelf");
           Kernels::constructLinksSavingDirections(i, p, disp, self_stencil, Y_, iProjSplit, oProjSplit);
-          prof_.Stop("CoarsenOperator.ConstructLinksPositive");
+          prof_.Stop("CoarsenOperator.ConstructLinksPositiveAndSelf");
         }
       }
     }
