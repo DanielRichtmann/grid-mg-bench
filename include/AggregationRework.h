@@ -75,6 +75,8 @@ public:
   IntergridOperator&       Subspace() { return subspace_; }
   IntergridOperator const& Subspace() const { return subspace_; }
 
+  void UseFastProjects(bool yesNo) { useFastProjects_ = yesNo; }
+
   void Orthogonalise(int checkOrthogonality = 1, int passes = 2) {
     prof_.Start("Create.Orthogonalise");
     ScalarField InnerProd(coarseGrid_);

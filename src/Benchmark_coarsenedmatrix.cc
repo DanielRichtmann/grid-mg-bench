@@ -54,12 +54,25 @@ int main(int argc, char** argv) {
   /////////////////////////////////////////////////////////////////////////////
 
   // clang-format off
-  const int  nBasis          = NBASIS; static_assert((nBasis & 0x1) == 0, "");
-  const int  nB              = nBasis / 2;
-  Coordinate blockSize       = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({4, 4, 4, 4}));
-  int        nIter           = readFromCommandLineInt(&argc, &argv, "--niter", 10);
-  bool       doPerfProfiling = readFromCommandLineToggle(&argc, &argv, "--perfprofiling");
+  const int  nBasis              = NBASIS; static_assert((nBasis & 0x1) == 0, "");
+  const int  nB                  = nBasis / 2;
+  Coordinate blockSize           = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({4, 4, 4, 4}));
+  int        nIter               = readFromCommandLineInt(&argc, &argv, "--niter", 10);
+  bool       runAll              = readFromCommandLineToggle(&argc, &argv, "--all");
+  std::vector<std::string> toRun = readFromCommandLineCSL(&argc, &argv, "--torun", {"Speed2FastProj"});
   // clang-format on
+
+  /////////////////////////////////////////////////////////////////////////////
+  //                            Print warning/info                           //
+  /////////////////////////////////////////////////////////////////////////////
+
+  if(!GridCmdOptionExists(argv, argv + argc, "--torun") &&
+     !GridCmdOptionExists(argv, argv + argc, "--all")) {
+    std::cout << GridLogWarning << "You did not specify argument --torun. Only benchmark for Upstream CoarsenOperator will be performed" << std::endl;
+    std::cout << GridLogWarning << "To run more use --torun <list> with <list> being a comma separated list from" << std::endl;
+    std::cout << GridLogWarning << "Baseline,Improved,Speed0SlowProj,Speed0FastProj,Speed1SlowProj,Speed1FastProj,Speed2SlowProj,Speed2FastProj" << std::endl;
+    std::cout << GridLogWarning << "You can also use --all to benchmark CoarsenOperator for all implementations." << std::endl;
+  }
 
   /////////////////////////////////////////////////////////////////////////////
   //                              General setup                              //
@@ -168,8 +181,7 @@ int main(int argc, char** argv) {
   UpstreamAggregation UpstreamAggs(CGrid, FGrid, cb);
   BaselineAggregation BaselineAggs(CGrid, FGrid, cb);
   ImprovedAggregation ImprovedAggs(CGrid, FGrid, cb);
-  TwoSpinAggregation  TwoSpinAggsDefault(CGrid, FGrid, cb, 0);
-  TwoSpinAggregation  TwoSpinAggsFast(CGrid, FGrid, cb, 1);
+  TwoSpinAggregation  TwoSpinAggs(CGrid, FGrid, cb, 1); // 1 = use fast projects
 
   const int checkOrthog = 1;
   const int gsPasses = 1;
@@ -178,8 +190,10 @@ int main(int argc, char** argv) {
   // (we check agreement of different impls in Benchmark_aggregation)
 
   UpstreamAggs.CreateSubspaceRandom(FPRNG);
-  for(int i = 0; i < TwoSpinAggsFast.Subspace().size(); ++i)
-    TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
+
+  for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i)
+    TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
+  TwoSpinAggs.Orthogonalise(checkOrthog, gsPasses);
 
   performChiralDoubling(UpstreamAggs.subspace);
   UpstreamAggs.Orthogonalise(checkOrthog, gsPasses);
@@ -188,10 +202,6 @@ int main(int argc, char** argv) {
     BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
     ImprovedAggs.subspace[i] = UpstreamAggs.subspace[i];
   }
-
-  TwoSpinAggsFast.Orthogonalise(checkOrthog, gsPasses);
-  for(int i = 0; i < TwoSpinAggsDefault.Subspace().size(); ++i)
-    TwoSpinAggsDefault.Subspace()[i] = TwoSpinAggsFast.Subspace()[i];
 
   /////////////////////////////////////////////////////////////////////////////
   //                         Setup of CoarsenedMatrix                        //
@@ -202,9 +212,17 @@ int main(int argc, char** argv) {
   UpstreamCoarsenedMatrix UpstreamCMat(*CGrid, hermitian);
   BaselineCoarsenedMatrix BaselineCMat(*CGrid, *CrbGrid, hermitian);
   ImprovedCoarsenedMatrix ImprovedCMat(*CGrid, hermitian);
-  TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel0(*CGrid, *CrbGrid, 0, hermitian); // speedLevel = 0
-  TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel1(*CGrid, *CrbGrid, 1, hermitian); // speedLevel = 1
-  TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel2(*CGrid, *CrbGrid, 2, hermitian); // speedLevel = 2
+  TwoSpinCoarsenedMatrix  TwoSpinCMat(*CGrid, *CrbGrid, 2, hermitian); // speedLevel = 2 (affects only CoarsenOperator)
+
+  // coarsen operator once and distribute coarse link fields to save time
+  // (we check agreement of different impls below)
+
+  TwoSpinCMat.CoarsenOperator(FGrid, LinOp, TwoSpinAggs);
+  for(int p = 0; p < TwoSpinCMat.geom_.npoint; ++p) {
+    convertLayout(TwoSpinCMat.Y_[p], UpstreamCMat.A[p]);
+    BaselineCMat.A[p] = UpstreamCMat.A[p];
+    ImprovedCMat.A[p] = UpstreamCMat.A[p];
+  }
 
   /////////////////////////////////////////////////////////////////////////////
   //            Calculate performance figures for instrumentation            //
@@ -227,120 +245,6 @@ int main(int argc, char** argv) {
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Running benchmark for CoarsenOperator" << std::endl;
-    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-
-    auto nIterOne = 1;
-
-    TwoSpinCoarsenedMatrix& TwoSpinCMatSpeedLevel0DefaultProjects = TwoSpinCMatSpeedLevel0;
-    TwoSpinCoarsenedMatrix& TwoSpinCMatSpeedLevel0FastProjects    = TwoSpinCMatSpeedLevel0;
-    TwoSpinCoarsenedMatrix& TwoSpinCMatSpeedLevel1DefaultProjects = TwoSpinCMatSpeedLevel1;
-    TwoSpinCoarsenedMatrix& TwoSpinCMatSpeedLevel1FastProjects    = TwoSpinCMatSpeedLevel1;
-    TwoSpinCoarsenedMatrix& TwoSpinCMatSpeedLevel2DefaultProjects = TwoSpinCMatSpeedLevel2;
-    TwoSpinCoarsenedMatrix& TwoSpinCMatSpeedLevel2FastProjects    = TwoSpinCMatSpeedLevel2;
-    UpstreamCoarseLinkField CoarseLFUpstreamTmp(CGrid);
-
-    double flop = 0; // TODO
-    double byte = 0; // TODO
-
-    // Upstream = Reference ///////////////////////////////////////////////////
-
-    // NOTE: For some reason, this crashes on GPU with a bus error when I uncomment this
-    BenchmarkFunction(UpstreamCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, UpstreamAggs);
-    auto profResults = UpstreamCMat.GetProfile(); UpstreamCMat.ResetProfile();
-    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-
-    // Baseline = state when I started working ////////////////////////////////
-
-    BenchmarkFunction(BaselineCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, BaselineAggs);
-    profResults = BaselineCMat.GetProfile(); BaselineCMat.ResetProfile();
-    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-
-    std::cout << GridLogMessage << "Deviations of baseline from upstream" << std::endl;
-    for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-      printDeviationFromReference(tol, UpstreamCMat.A[p], BaselineCMat.A[p]);
-    }
-
-    // My improvements to upstream ////////////////////////////////////////////
-
-    BenchmarkFunction(ImprovedCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, ImprovedAggs);
-    profResults = ImprovedCMat.GetProfile(); ImprovedCMat.ResetProfile();
-    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-
-    std::cout << GridLogMessage << "Deviations of improvedupstream from upstream" << std::endl;
-    for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-      printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedCMat.A[p]);
-    }
-
-    // Twospin layout speedlevel 0, default projects //////////////////////////
-
-    BenchmarkFunction(TwoSpinCMatSpeedLevel0DefaultProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsDefault);
-    profResults = TwoSpinCMatSpeedLevel0DefaultProjects.GetProfile(); TwoSpinCMatSpeedLevel0DefaultProjects.ResetProfile();
-    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-
-    std::cout << GridLogMessage << "Deviations of twospin (speed level 0, default projects) from upstream" << std::endl;
-    for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-      convertLayout(TwoSpinCMatSpeedLevel0DefaultProjects.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
-    }
-
-    // Twospin layout speedlevel 0, fast projects /////////////////////////////
-
-    BenchmarkFunction(TwoSpinCMatSpeedLevel0FastProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsFast);
-    profResults = TwoSpinCMatSpeedLevel0FastProjects.GetProfile(); TwoSpinCMatSpeedLevel0FastProjects.ResetProfile();
-    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-
-    std::cout << GridLogMessage << "Deviations of two-spin layout (speed level 0, fast projects) from upstream" << std::endl;
-    for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-      convertLayout(TwoSpinCMatSpeedLevel0FastProjects.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
-    }
-
-    // Twospin layout speedlevel 1, default projects //////////////////////////
-
-    BenchmarkFunction(TwoSpinCMatSpeedLevel1DefaultProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsDefault);
-    profResults = TwoSpinCMatSpeedLevel1DefaultProjects.GetProfile(); TwoSpinCMatSpeedLevel1DefaultProjects.ResetProfile();
-    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-
-    std::cout << GridLogMessage << "Deviations of twospin (speed level 1, default projects) from upstream" << std::endl;
-    for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-      convertLayout(TwoSpinCMatSpeedLevel1DefaultProjects.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
-    }
-
-    // Twospin layout speedlevel 1, fast projects /////////////////////////////
-
-    BenchmarkFunction(TwoSpinCMatSpeedLevel1FastProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsFast);
-    profResults = TwoSpinCMatSpeedLevel1FastProjects.GetProfile(); TwoSpinCMatSpeedLevel1FastProjects.ResetProfile();
-    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-
-    std::cout << GridLogMessage << "Deviations of twospin (speed level 1, fast projects) from upstream" << std::endl;
-    for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-      convertLayout(TwoSpinCMatSpeedLevel1FastProjects.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
-    }
-
-    // Twospin layout speedlevel 2, default projects //////////////////////////
-
-    BenchmarkFunction(TwoSpinCMatSpeedLevel2DefaultProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsDefault);
-    profResults = TwoSpinCMatSpeedLevel2DefaultProjects.GetProfile(); TwoSpinCMatSpeedLevel2DefaultProjects.ResetProfile();
-    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-
-    std::cout << GridLogMessage << "Deviations of twospin (speed level 2, default projects) from upstream" << std::endl;
-    for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-      convertLayout(TwoSpinCMatSpeedLevel2DefaultProjects.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
-    }
-
-    // Twospin layout speedlevel 2, fast projects /////////////////////////////
-
-    BenchmarkFunction(TwoSpinCMatSpeedLevel2FastProjects.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggsFast);
-    profResults = TwoSpinCMatSpeedLevel2FastProjects.GetProfile(); TwoSpinCMatSpeedLevel2FastProjects.ResetProfile();
-    prettyPrintProfiling("", profResults, profResults["CoarsenOperator.Total"].t, false);
-
-    std::cout << GridLogMessage << "Deviations of twospin (speed level 2, fast projects) from upstream" << std::endl;
-    for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-      convertLayout(TwoSpinCMatSpeedLevel2FastProjects.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
-    }
-  }
-
-  {
-    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
     std::cout << GridLogMessage << "Running benchmark for M" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
@@ -355,8 +259,8 @@ int main(int argc, char** argv) {
     double flop = CVolume * ((nStencil * (8 * CSiteElems * CSiteElems - 2 * CSiteElems) + nAccum * 2 * CSiteElems) + 8 * CSiteElems);
     double byte = CVolume * ((nStencil * (CSiteElems * CSiteElems + CSiteElems) + CSiteElems) + CSiteElems) * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamCMat.M,           flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
-    BenchmarkFunction(TwoSpinCMatSpeedLevel2.M, flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
+    BenchmarkFunction(UpstreamCMat.M, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
+    BenchmarkFunction(TwoSpinCMat.M,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
     printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
@@ -379,8 +283,8 @@ int main(int argc, char** argv) {
     double flop = CVolume * ((nStencil * (8 * CSiteElems * CSiteElems - 2 * CSiteElems) + nAccum * 2 * CSiteElems) + 8 * CSiteElems) + 2 * CVolume * (3 * CSiteElems);
     double byte = CVolume * ((nStencil * (CSiteElems * CSiteElems + CSiteElems) + CSiteElems) + CSiteElems) * sizeof(Complex) + 2 * CVolume * (3 * CSiteElems) * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamCMat.Mdag,           flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
-    BenchmarkFunction(TwoSpinCMatSpeedLevel2.Mdag, flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
+    BenchmarkFunction(UpstreamCMat.Mdag, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
+    BenchmarkFunction(TwoSpinCMat.Mdag,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
     printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
@@ -402,8 +306,8 @@ int main(int argc, char** argv) {
     double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
     double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamCMat.Mdir,           flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut, 2, 1);
-    BenchmarkFunction(TwoSpinCMatSpeedLevel2.Mdir, flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
+    BenchmarkFunction(UpstreamCMat.Mdir, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut, 2, 1);
+    BenchmarkFunction(TwoSpinCMat.Mdir,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
     printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
@@ -425,11 +329,143 @@ int main(int argc, char** argv) {
     double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
     double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamCMat.Mdiag,           flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
-    BenchmarkFunction(TwoSpinCMatSpeedLevel2.Mdiag, flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
+    BenchmarkFunction(UpstreamCMat.Mdiag, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
+    BenchmarkFunction(TwoSpinCMat.Mdiag,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
     printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
+  }
+
+  {
+    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
+    std::cout << GridLogMessage << "Running benchmark for CoarsenOperator" << std::endl;
+    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
+
+    auto nIterOne = 1;
+
+    UpstreamCoarseLinkField CoarseLFUpstreamTmp(CGrid);
+
+    double flop = 0; // TODO
+    double byte = 0; // TODO
+
+    // Upstream = Reference (always run) //////////////////////////////////////
+
+    // NOTE: For some reason, this crashes on GPU with a bus error when I uncomment this
+    BenchmarkFunction(UpstreamCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, UpstreamAggs);
+    auto profResults = UpstreamCMat.GetProfile(); UpstreamCMat.ResetProfile();
+    prettyPrintProfiling("Upstream", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+    for(auto&& elem : toRun) {
+      // Baseline = state when I started working ////////////////////////////////
+
+      if(elem == "Baseline" || runAll) {
+        BenchmarkFunction(BaselineCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, BaselineAggs);
+        profResults = BaselineCMat.GetProfile(); BaselineCMat.ResetProfile();
+        prettyPrintProfiling("Baseline", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+        std::cout << GridLogMessage << "Deviations of Baseline from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
+          printDeviationFromReference(tol, UpstreamCMat.A[p], BaselineCMat.A[p]);
+        }
+      }
+
+      // My improvements to upstream ////////////////////////////////////////////
+
+      if(elem == "Improved" || runAll) {
+        BenchmarkFunction(ImprovedCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, ImprovedAggs);
+        profResults = ImprovedCMat.GetProfile(); ImprovedCMat.ResetProfile();
+        prettyPrintProfiling("Improved", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+        std::cout << GridLogMessage << "Deviations of Improved from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
+          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedCMat.A[p]);
+        }
+      }
+
+      // Twospin layout speedlevel 0, slow projects /////////////////////////////
+
+      if(elem == "Speed0SlowProj" || runAll) {
+        TwoSpinCMat.speedLevel_ = 0; TwoSpinAggs.UseFastProjects(false);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggs);
+        profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
+        prettyPrintProfiling("TwoSpin.Speed0.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+        std::cout << GridLogMessage << "Deviations of TwoSpin.Speed0.SlowProj from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+        }
+      }
+
+      // Twospin layout speedlevel 0, fast projects /////////////////////////////
+
+      if(elem == "Speed0FastProj" || runAll) {
+        TwoSpinCMat.speedLevel_ = 0; TwoSpinAggs.UseFastProjects(true);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggs);
+        profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
+        prettyPrintProfiling("TwoSpin.Speed0.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+        std::cout << GridLogMessage << "Deviations of TwoSpin.Speed0.FastProj from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+        }
+      }
+
+      // Twospin layout speedlevel 1, slow projects /////////////////////////////
+
+      if(elem == "Speed1SlowProj" || runAll) {
+        TwoSpinCMat.speedLevel_ = 1; TwoSpinAggs.UseFastProjects(false);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggs);
+        profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
+        prettyPrintProfiling("TwoSpin.Speed1.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+        std::cout << GridLogMessage << "Deviations of TwoSpin.Speed1.SlowProj from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+        }
+      }
+
+      // Twospin layout speedlevel 1, fast projects /////////////////////////////
+
+      if(elem == "Speed1FastProj" || runAll) {
+        TwoSpinCMat.speedLevel_ = 1; TwoSpinAggs.UseFastProjects(true);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggs);
+        profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
+        prettyPrintProfiling("TwoSpin.Speed1.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+        std::cout << GridLogMessage << "Deviations of TwoSpin.Speed1.FastProj from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+        }
+      }
+
+      // Twospin layout speedlevel 2, slow projects /////////////////////////////
+
+      if(elem == "Speed2SlowProj" || runAll) {
+        TwoSpinCMat.speedLevel_ = 2; TwoSpinAggs.UseFastProjects(false);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggs);
+        profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
+        prettyPrintProfiling("TwoSpin.Speed2.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+        std::cout << GridLogMessage << "Deviations of TwoSpin.Speed2.SlowProj from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+        }
+      }
+
+      // Twospin layout speedlevel 2, fast projects /////////////////////////////
+
+      if(elem == "Speed2FastProj" || runAll) {
+        TwoSpinCMat.speedLevel_ = 2; TwoSpinAggs.UseFastProjects(true);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, TwoSpinAggs);
+        profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
+        prettyPrintProfiling("TwoSpin.Speed2.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+        std::cout << GridLogMessage << "Deviations of TwoSpin.Speed2.FastProj from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+        }
+      }
+    }
   }
 
   Grid_finalize();

@@ -84,6 +84,19 @@ bool readFromCommandLineToggle(int* argc, char*** argv, const std::string& optio
   return GridCmdOptionExists(*argv, *argv + *argc, option);
 }
 
+std::vector<std::string> readFromCommandLineCSL(int*                            argc,
+                                                char***                         argv,
+                                                const std::string&              option,
+                                                const std::vector<std::string>& defaultValues) {
+  std::string      arg;
+  std::vector<std::string> ret(defaultValues);
+  if(GridCmdOptionExists(*argv, *argv + *argc, option)) {
+    arg = GridCmdOptionPayload(*argv, *argv + *argc, option);
+    GridCmdOptionCSL(arg, ret);
+  }
+  return ret;
+}
+
 template<typename Field>
 void performChiralDoubling(std::vector<Field>& basisVectors) {
   assert(basisVectors.size() % 2 == 0);
