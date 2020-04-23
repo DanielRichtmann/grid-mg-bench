@@ -137,7 +137,6 @@ int main(int argc, char** argv) {
   //                           Setup of Aggregation                          //
   /////////////////////////////////////////////////////////////////////////////
 
-  std::cout << GridLogMessage << "Lorentz Index: " << TwoSpinCoarseningPolicy::Nl_f << std::endl;
 
   UpstreamAggregation UpstreamAggs(CGrid, FGrid, 0);
   BaselineAggregation BaselineAggs(CGrid, FGrid, 0);
@@ -165,6 +164,9 @@ int main(int argc, char** argv) {
 
   auto FSiteElems = getSiteElems<LatticeFermion>();
   auto CSiteElems = getSiteElems<UpstreamCoarseVector>();
+
+  std::cout << GridLogDebug << "FSiteElems = " << FSiteElems << std::endl;
+  std::cout << GridLogDebug << "CSiteElems = " << CSiteElems << std::endl;
 
   double FVolume = std::accumulate(FGrid->_fdimensions.begin(), FGrid->_fdimensions.end(), 1, std::multiplies<double>());
   double CVolume = std::accumulate(CGrid->_fdimensions.begin(), CGrid->_fdimensions.end(), 1, std::multiplies<double>());

@@ -199,18 +199,19 @@ int main(int argc, char** argv) {
 
   double nStencil   = UpstreamCMat.geom.npoint;
   double nAccum     = nStencil;
-  double FSiteElems = Nc * Ns;
-  double CSiteElems = nBasis;
+  double FSiteElems = getSiteElems<LatticeFermion>();
+  double CSiteElems = getSiteElems<UpstreamCoarseVector>();
+
+  std::cout << GridLogDebug << "FSiteElems = " << FSiteElems << std::endl;
+  std::cout << GridLogDebug << "CSiteElems = " << CSiteElems << std::endl;
 
   double FVolume = std::accumulate(FGrid->_fdimensions.begin(), FGrid->_fdimensions.end(), 1, std::multiplies<double>());
   double CVolume = std::accumulate(CGrid->_fdimensions.begin(), CGrid->_fdimensions.end(), 1, std::multiplies<double>());
 
-#if 0 // TODO DELETE AGAIN
-  for(int p = 0; p < BaselineCMat.geom.npoint; ++p) {
-    random(CPRNG, BaselineCMat.A[p]);
-    convertLayout(BaselineCMat.A[p], TwoSpinCMatSpeedLevel0.Y_[p]);
-  }
-#else
+  /////////////////////////////////////////////////////////////////////////////
+  //                           Start of benchmarks                           //
+  /////////////////////////////////////////////////////////////////////////////
+
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
     std::cout << GridLogMessage << "Running benchmark for CoarsenOperator" << std::endl;
@@ -298,7 +299,6 @@ int main(int argc, char** argv) {
       convertLayout(TwoSpinCMatSpeedLevel2FastProjects.Y_[p], CoarseLFBaselineTmp); printDeviationFromReference(tol, BaselineCMat.A[p], CoarseLFBaselineTmp);
     }
   }
-#endif
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
