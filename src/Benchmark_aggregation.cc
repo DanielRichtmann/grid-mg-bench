@@ -286,13 +286,13 @@ int main(int argc, char** argv) {
     double byte = byteBlockNormalise * nBasis + (byteBlockInnerProduct + byteMinus + byteBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
 
     if(doPerfProfiling) {
-      PerfProfileFunction(BaselineAggs.Orthogonalise,       nIterOne, 1); // 1 pass
-      PerfProfileFunction(UpstreamAggs.Orthogonalise,       nIterOne);
+      PerfProfileFunction(BaselineAggs.Orthogonalise,       nIterOne, 0, 1); // no orthog check, 1 pass
+      PerfProfileFunction(UpstreamAggs.Orthogonalise,       nIterOne, 0, 1); // no orthog check, 1 pass
       PerfProfileFunction(TwoSpinAggsDefault.Orthogonalise, nIterOne, 0, 1); // no orthog check, 1 pass
       PerfProfileFunction(TwoSpinAggsFast.Orthogonalise,    nIterOne, 0, 1); // no orthog check, 1 pass
     } else {
-      BenchmarkFunction(BaselineAggs.Orthogonalise,       flop, byte, nIterOne, 1); // 1 pass
-      BenchmarkFunction(UpstreamAggs.Orthogonalise,       flop, byte, nIterOne);
+      BenchmarkFunction(BaselineAggs.Orthogonalise,       flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
+      BenchmarkFunction(UpstreamAggs.Orthogonalise,       flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
       BenchmarkFunction(TwoSpinAggsDefault.Orthogonalise, flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
       BenchmarkFunction(TwoSpinAggsFast.Orthogonalise,    flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
     }

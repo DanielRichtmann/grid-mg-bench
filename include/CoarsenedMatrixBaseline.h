@@ -119,14 +119,13 @@ public:
     return subspace;
   }
   
-  void Orthogonalise(int passes = 2){
+  void Orthogonalise(int checkOrthogonality = 1, int passes = 2){
     CoarseScalar InnerProd(CoarseGrid); 
     for(int n = 0; n < passes; ++n) {
       std::cout << GridLogMessage <<" Gramm-Schmidt pass "<<n+1<<std::endl;
       blockOrthogonalise(InnerProd, subspace);
     }
-    //      std::cout << GridLogMessage <<" Gramm-Schmidt checking orthogonality"<<std::endl;
-    //      CheckOrthogonal();
+    if(checkOrthogonality) CheckOrthogonal();
   }
   void CheckOrthogonal(void){
     CoarseVector iProj(CoarseGrid);
