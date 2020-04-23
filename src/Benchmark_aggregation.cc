@@ -141,7 +141,7 @@ int main(int argc, char** argv) {
 
   UpstreamAggregation UpstreamAggs(CGrid, FGrid, cb);
   BaselineAggregation BaselineAggs(CGrid, FGrid, cb);
-  TwoSpinAggregation  TwoSpinAggsDefault(CGrid, FGrid, cb, 0);
+  TwoSpinAggregation  TwoSpinAggsSlow(CGrid, FGrid, cb, 0);
   TwoSpinAggregation  TwoSpinAggsFast(CGrid, FGrid, cb, 1);
 
   const int checkOrthog = 1;
@@ -160,8 +160,8 @@ int main(int argc, char** argv) {
     BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
 
   TwoSpinAggsFast.Orthogonalise(checkOrthog, 1); // 1 gs pass
-  for(int i = 0; i < TwoSpinAggsDefault.Subspace().size(); ++i)
-    TwoSpinAggsDefault.Subspace()[i] = TwoSpinAggsFast.Subspace()[i];
+  for(int i = 0; i < TwoSpinAggsSlow.Subspace().size(); ++i)
+    TwoSpinAggsSlow.Subspace()[i] = TwoSpinAggsFast.Subspace()[i];
 
   /////////////////////////////////////////////////////////////////////////////
   //             Calculate numbers needed for performance figures            //
@@ -186,25 +186,25 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
-    LatticeFermion       FineVec(FGrid);                  random(FPRNG, FineVec);
-    UpstreamCoarseVector CoarseVecUpstream(CGrid);        CoarseVecUpstream       = Zero();
-    BaselineCoarseVector CoarseVecBaseline(CGrid);        CoarseVecBaseline       = Zero();
-    TwoSpinCoarseVector  CoarseVecTwospinDefault(CGrid);  CoarseVecTwospinDefault = Zero();
-    TwoSpinCoarseVector  CoarseVecTwospinFast(CGrid);     CoarseVecTwospinFast    = Zero();
+    LatticeFermion       FineVec(FGrid);              random(FPRNG, FineVec);
+    UpstreamCoarseVector CoarseVecUpstream(CGrid);    CoarseVecUpstream    = Zero();
+    BaselineCoarseVector CoarseVecBaseline(CGrid);    CoarseVecBaseline    = Zero();
+    TwoSpinCoarseVector  CoarseVecTwospinSlow(CGrid); CoarseVecTwospinSlow = Zero();
+    TwoSpinCoarseVector  CoarseVecTwospinFast(CGrid); CoarseVecTwospinFast = Zero();
     UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
     // clang-format on
 
     double flop = FVolume * (8 * FSiteElems) * nBasis;
     double byte = FVolume * (2 * 1 + 2 * FSiteElems) * nBasis * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamAggs.ProjectToSubspace,       flop, byte, nIter, CoarseVecUpstream,       FineVec);
-    BenchmarkFunction(BaselineAggs.ProjectToSubspace,       flop, byte, nIter, CoarseVecBaseline,       FineVec);
-    BenchmarkFunction(TwoSpinAggsDefault.ProjectToSubspace, flop, byte, nIter, CoarseVecTwospinDefault, FineVec);
-    BenchmarkFunction(TwoSpinAggsFast.ProjectToSubspace,    flop, byte, nIter, CoarseVecTwospinFast,    FineVec);
+    BenchmarkFunction(UpstreamAggs.ProjectToSubspace,    flop, byte, nIter, CoarseVecUpstream,    FineVec);
+    BenchmarkFunction(BaselineAggs.ProjectToSubspace,    flop, byte, nIter, CoarseVecBaseline,    FineVec);
+    BenchmarkFunction(TwoSpinAggsSlow.ProjectToSubspace, flop, byte, nIter, CoarseVecTwospinSlow, FineVec);
+    BenchmarkFunction(TwoSpinAggsFast.ProjectToSubspace, flop, byte, nIter, CoarseVecTwospinFast, FineVec);
 
     // clang-format off
     printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecBaseline);
-    convertLayout(CoarseVecTwospinDefault,CoarseVecUpstreamTmp); printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecUpstreamTmp);
+    convertLayout(CoarseVecTwospinSlow,CoarseVecUpstreamTmp); printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecUpstreamTmp);
     convertLayout(CoarseVecTwospinFast,CoarseVecUpstreamTmp); printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecUpstreamTmp);
     // clang-format on
   }
@@ -215,26 +215,26 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
-    LatticeFermion        FineVecUpstream(FGrid);         FineVecUpstream       = Zero();
-    LatticeFermion        FineVecBaseline(FGrid);         FineVecBaseline       = Zero();
-    LatticeFermion        FineVecTwospinDefault(FGrid);   FineVecTwospinDefault = Zero();
-    LatticeFermion        FineVecTwospinFast(FGrid);      FineVecTwospinFast    = Zero();
-    UpstreamCoarseVector  CoarseVecUpstream(CGrid);       random(CPRNG, CoarseVecUpstream);
-    BaselineCoarseVector  CoarseVecBaseline(CGrid);       CoarseVecBaseline = CoarseVecUpstream;
-    TwoSpinCoarseVector   CoarseVecTwospinDefault(CGrid); convertLayout(CoarseVecUpstream, CoarseVecTwospinDefault);
-    TwoSpinCoarseVector   CoarseVecTwospinFast(CGrid);    convertLayout(CoarseVecUpstream, CoarseVecTwospinFast);
+    LatticeFermion       FineVecUpstream(FGrid);      FineVecUpstream    = Zero();
+    LatticeFermion       FineVecBaseline(FGrid);      FineVecBaseline    = Zero();
+    LatticeFermion       FineVecTwospinSlow(FGrid);   FineVecTwospinSlow = Zero();
+    LatticeFermion       FineVecTwospinFast(FGrid);   FineVecTwospinFast = Zero();
+    UpstreamCoarseVector CoarseVecUpstream(CGrid);    random(CPRNG, CoarseVecUpstream);
+    BaselineCoarseVector CoarseVecBaseline(CGrid);    CoarseVecBaseline = CoarseVecUpstream;
+    TwoSpinCoarseVector  CoarseVecTwospinSlow(CGrid); convertLayout(CoarseVecUpstream, CoarseVecTwospinSlow);
+    TwoSpinCoarseVector  CoarseVecTwospinFast(CGrid); convertLayout(CoarseVecUpstream, CoarseVecTwospinFast);
     // clang-format on
 
     double flop = FVolume * (8 * (nBasis - 1) + 6) * FSiteElems;
     double byte = FVolume * ((1 * 1 + 3 * FSiteElems) * (nBasis - 1) + (1 * 1 + 2 * FSiteElems) * 1) * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamAggs.PromoteFromSubspace,       flop, byte, nIter, CoarseVecUpstream,       FineVecUpstream);
-    BenchmarkFunction(BaselineAggs.PromoteFromSubspace,       flop, byte, nIter, CoarseVecBaseline,       FineVecBaseline);
-    BenchmarkFunction(TwoSpinAggsDefault.PromoteFromSubspace, flop, byte, nIter, CoarseVecTwospinDefault, FineVecTwospinDefault);
-    BenchmarkFunction(TwoSpinAggsFast.PromoteFromSubspace,    flop, byte, nIter, CoarseVecTwospinFast,    FineVecTwospinFast);
+    BenchmarkFunction(UpstreamAggs.PromoteFromSubspace,    flop, byte, nIter, CoarseVecUpstream,    FineVecUpstream);
+    BenchmarkFunction(BaselineAggs.PromoteFromSubspace,    flop, byte, nIter, CoarseVecBaseline,    FineVecBaseline);
+    BenchmarkFunction(TwoSpinAggsSlow.PromoteFromSubspace, flop, byte, nIter, CoarseVecTwospinSlow, FineVecTwospinSlow);
+    BenchmarkFunction(TwoSpinAggsFast.PromoteFromSubspace, flop, byte, nIter, CoarseVecTwospinFast, FineVecTwospinFast);
 
     printDeviationFromReference(tol, FineVecUpstream, FineVecBaseline);
-    printDeviationFromReference(tol, FineVecUpstream, FineVecTwospinDefault);
+    printDeviationFromReference(tol, FineVecUpstream, FineVecTwospinSlow);
     printDeviationFromReference(tol, FineVecUpstream, FineVecTwospinFast);
   }
 
@@ -244,9 +244,9 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     UpstreamAggs.CreateSubspaceRandom(FPRNG);
-    for(int i=0; i<TwoSpinAggsDefault.Subspace().size(); ++i) {
-      TwoSpinAggsDefault.Subspace()[i] = UpstreamAggs.subspace[i];
-      TwoSpinAggsFast.Subspace()[i]    = UpstreamAggs.subspace[i];
+    for(int i=0; i<TwoSpinAggsSlow.Subspace().size(); ++i) {
+      TwoSpinAggsSlow.Subspace()[i] = UpstreamAggs.subspace[i];
+      TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
     }
     performChiralDoubling(UpstreamAggs.subspace);
     for(int i = 0; i < UpstreamAggs.subspace.size(); ++i)
@@ -282,18 +282,18 @@ int main(int argc, char** argv) {
     auto nIterOne = 1;
     auto checkOrthog = 0;
 
-    BenchmarkFunction(UpstreamAggs.Orthogonalise,       flop, byte, nIterOne, checkOrthog, gsPasses);
-    BenchmarkFunction(BaselineAggs.Orthogonalise,       flop, byte, nIterOne, checkOrthog, gsPasses);
-    BenchmarkFunction(TwoSpinAggsDefault.Orthogonalise, flop, byte, nIterOne, checkOrthog, gsPasses);
-    BenchmarkFunction(TwoSpinAggsFast.Orthogonalise,    flop, byte, nIterOne, checkOrthog, gsPasses);
+    BenchmarkFunction(UpstreamAggs.Orthogonalise,    flop, byte, nIterOne, checkOrthog, gsPasses);
+    BenchmarkFunction(BaselineAggs.Orthogonalise,    flop, byte, nIterOne, checkOrthog, gsPasses);
+    BenchmarkFunction(TwoSpinAggsSlow.Orthogonalise, flop, byte, nIterOne, checkOrthog, gsPasses);
+    BenchmarkFunction(TwoSpinAggsFast.Orthogonalise, flop, byte, nIterOne, checkOrthog, gsPasses);
 
     undoChiralDoubling(UpstreamAggs.subspace); // necessary for comparison
     undoChiralDoubling(BaselineAggs.subspace); // necessary for comparison
 
     std::cout << GridLogMessage << "Deviations of BaselineAggs.Subspace() from UpstreamAggs.subspace" << std::endl;
     for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], BaselineAggs.Subspace()[i]);
-    std::cout << GridLogMessage << "Deviations of TwoSpinAggsDefault.Subspace() from UpstreamAggs.subspace" << std::endl;
-    for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], TwoSpinAggsDefault.Subspace()[i]);
+    std::cout << GridLogMessage << "Deviations of TwoSpinAggsSlow.Subspace() from UpstreamAggs.subspace" << std::endl;
+    for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], TwoSpinAggsSlow.Subspace()[i]);
     std::cout << GridLogMessage << "Deviations of TwoSpinAggsFast.Subspace() from UpstreamAggs.subspace" << std::endl;
     for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], TwoSpinAggsFast.Subspace()[i]);
   }
