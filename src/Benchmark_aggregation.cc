@@ -53,11 +53,10 @@ int main(int argc, char** argv) {
   /////////////////////////////////////////////////////////////////////////////
 
   // clang-format off
-  const int  nBasis          = NBASIS; static_assert((nBasis & 0x1) == 0, "");
-  const int  nB              = nBasis / 2;
-  Coordinate blockSize       = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({4, 4, 4, 4}));
-  int        nIter           = readFromCommandLineInt(&argc, &argv, "--niter", 10);
-  bool       doPerfProfiling = readFromCommandLineToggle(&argc, &argv, "--perfprofiling");
+  const int  nBasis    = NBASIS; static_assert((nBasis & 0x1) == 0, "");
+  const int  nB        = nBasis / 2;
+  Coordinate blockSize = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({4, 4, 4, 4}));
+  int        nIter     = readFromCommandLineInt(&argc, &argv, "--niter", 10);
   // clang-format on
 
   /////////////////////////////////////////////////////////////////////////////
@@ -192,17 +191,10 @@ int main(int argc, char** argv) {
     double flop = FVolume * (8 * FSiteElems) * nBasis;
     double byte = FVolume * (2 * 1 + 2 * FSiteElems) * nBasis * sizeof(Complex);
 
-    if(doPerfProfiling) {
-      PerfProfileFunction(UpstreamAggs.ProjectToSubspace,       nIter, CoarseVecUpstream,       FineVec);
-      PerfProfileFunction(BaselineAggs.ProjectToSubspace,       nIter, CoarseVecBaseline,       FineVec);
-      PerfProfileFunction(TwoSpinAggsDefault.ProjectToSubspace, nIter, CoarseVecTwospinDefault, FineVec);
-      PerfProfileFunction(TwoSpinAggsFast.ProjectToSubspace,    nIter, CoarseVecTwospinFast,    FineVec);
-    } else {
-      BenchmarkFunction(UpstreamAggs.ProjectToSubspace,       flop, byte, nIter, CoarseVecUpstream,       FineVec);
-      BenchmarkFunction(BaselineAggs.ProjectToSubspace,       flop, byte, nIter, CoarseVecBaseline,       FineVec);
-      BenchmarkFunction(TwoSpinAggsDefault.ProjectToSubspace, flop, byte, nIter, CoarseVecTwospinDefault, FineVec);
-      BenchmarkFunction(TwoSpinAggsFast.ProjectToSubspace,    flop, byte, nIter, CoarseVecTwospinFast,    FineVec);
-    }
+    BenchmarkFunction(UpstreamAggs.ProjectToSubspace,       flop, byte, nIter, CoarseVecUpstream,       FineVec);
+    BenchmarkFunction(BaselineAggs.ProjectToSubspace,       flop, byte, nIter, CoarseVecBaseline,       FineVec);
+    BenchmarkFunction(TwoSpinAggsDefault.ProjectToSubspace, flop, byte, nIter, CoarseVecTwospinDefault, FineVec);
+    BenchmarkFunction(TwoSpinAggsFast.ProjectToSubspace,    flop, byte, nIter, CoarseVecTwospinFast,    FineVec);
 
     // prettyPrintProfiling("", TwoSpinAggsDefault.GetProfile(), GridTime(0), true);
     // prettyPrintProfiling("", TwoSpinAggsFast.GetProfile(),    GridTime(0), true);
@@ -233,17 +225,10 @@ int main(int argc, char** argv) {
     double flop = FVolume * (8 * (nBasis - 1) + 6) * FSiteElems;
     double byte = FVolume * ((1 * 1 + 3 * FSiteElems) * (nBasis - 1) + (1 * 1 + 2 * FSiteElems) * 1) * sizeof(Complex);
 
-    if(doPerfProfiling) {
-      PerfProfileFunction(UpstreamAggs.PromoteFromSubspace,       nIter, CoarseVecUpstream,       FineVecUpstream);
-      PerfProfileFunction(BaselineAggs.PromoteFromSubspace,       nIter, CoarseVecBaseline,       FineVecBaseline);
-      PerfProfileFunction(TwoSpinAggsDefault.PromoteFromSubspace, nIter, CoarseVecTwospinDefault, FineVecTwospinDefault);
-      PerfProfileFunction(TwoSpinAggsFast.PromoteFromSubspace,    nIter, CoarseVecTwospinFast,    FineVecTwospinFast);
-    } else {
-      BenchmarkFunction(UpstreamAggs.PromoteFromSubspace,       flop, byte, nIter, CoarseVecUpstream,       FineVecUpstream);
-      BenchmarkFunction(BaselineAggs.PromoteFromSubspace,       flop, byte, nIter, CoarseVecBaseline,       FineVecBaseline);
-      BenchmarkFunction(TwoSpinAggsDefault.PromoteFromSubspace, flop, byte, nIter, CoarseVecTwospinDefault, FineVecTwospinDefault);
-      BenchmarkFunction(TwoSpinAggsFast.PromoteFromSubspace,    flop, byte, nIter, CoarseVecTwospinFast,    FineVecTwospinFast);
-    }
+    BenchmarkFunction(UpstreamAggs.PromoteFromSubspace,       flop, byte, nIter, CoarseVecUpstream,       FineVecUpstream);
+    BenchmarkFunction(BaselineAggs.PromoteFromSubspace,       flop, byte, nIter, CoarseVecBaseline,       FineVecBaseline);
+    BenchmarkFunction(TwoSpinAggsDefault.PromoteFromSubspace, flop, byte, nIter, CoarseVecTwospinDefault, FineVecTwospinDefault);
+    BenchmarkFunction(TwoSpinAggsFast.PromoteFromSubspace,    flop, byte, nIter, CoarseVecTwospinFast,    FineVecTwospinFast);
 
     printDeviationFromReference(tol, FineVecUpstream, FineVecBaseline);
     printDeviationFromReference(tol, FineVecUpstream, FineVecTwospinDefault);
@@ -294,17 +279,10 @@ int main(int argc, char** argv) {
     double flop = flopBlockNormalise * nBasis + (flopBlockInnerProduct + flopMinus + flopBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
     double byte = byteBlockNormalise * nBasis + (byteBlockInnerProduct + byteMinus + byteBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
 
-    if(doPerfProfiling) {
-      PerfProfileFunction(UpstreamAggs.Orthogonalise,       nIterOne, 0, 1); // no orthog check, 1 pass
-      PerfProfileFunction(BaselineAggs.Orthogonalise,       nIterOne, 0, 1); // no orthog check, 1 pass
-      PerfProfileFunction(TwoSpinAggsDefault.Orthogonalise, nIterOne, 0, 1); // no orthog check, 1 pass
-      PerfProfileFunction(TwoSpinAggsFast.Orthogonalise,    nIterOne, 0, 1); // no orthog check, 1 pass
-    } else {
-      BenchmarkFunction(UpstreamAggs.Orthogonalise,       flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
-      BenchmarkFunction(BaselineAggs.Orthogonalise,       flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
-      BenchmarkFunction(TwoSpinAggsDefault.Orthogonalise, flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
-      BenchmarkFunction(TwoSpinAggsFast.Orthogonalise,    flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
-    }
+    BenchmarkFunction(UpstreamAggs.Orthogonalise,       flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
+    BenchmarkFunction(BaselineAggs.Orthogonalise,       flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
+    BenchmarkFunction(TwoSpinAggsDefault.Orthogonalise, flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
+    BenchmarkFunction(TwoSpinAggsFast.Orthogonalise,    flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
 
     undoChiralDoubling(UpstreamAggs.subspace); // necessary for comparison
     undoChiralDoubling(BaselineAggs.subspace); // necessary for comparison
