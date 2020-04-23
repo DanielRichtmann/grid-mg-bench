@@ -27,8 +27,9 @@
 /*  END LEGAL */
 
 #include <Grid/Grid.h>
-#include <tests/multigrid/Multigrid.h>
-#include <benchmarks/Benchmark_helpers.h>
+#include <Multigrid.h>
+#include <CoarsenedMatrixBaseline.h>
+#include <Benchmark_helpers.h>
 
 using namespace Grid;
 using namespace Grid::BenchmarkHelpers;
@@ -121,56 +122,38 @@ int main(int argc, char** argv) {
   typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy> CoarseDiracMatrix;
   typedef typename CoarseDiracMatrix::FermionField               CoarseVector;
 #else
-  typedef MGBasisVectors<LatticeFermion>                              BasisVectors;
-  typedef Grid::AggregationDevelop<vSpinColourVector, vTComplex, nBasis>     Aggregates;
-  typedef Grid::CoarsenedMatrixDevelop<vSpinColourVector, vTComplex, nBasis> CoarseDiracMatrix;
-  typedef CoarseDiracMatrix::CoarseVector                             CoarseVector;
+  typedef MGBasisVectors<LatticeFermion>                                        BasisVectors;
+  typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis>     Aggregates;
+  typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> CoarseDiracMatrix;
+  typedef CoarseDiracMatrix::CoarseVector                                       CoarseVector;
 #endif
 
   /////////////////////////////////////////////////////////////////////////////
   //                           Setup of Aggregation                          //
   /////////////////////////////////////////////////////////////////////////////
 
-  // setup with GMRES like in Wilson MG
-  TrivialPrecon<LatticeFermion>                      simple;
-  FlexibleGeneralisedMinimalResidual<LatticeFermion> FGMRES(1.0e-14, 4, simple, 4, false);
-
-  MGBasisVectorsParams bvPar;
-  bvPar.preOrthonormalise  = false;
-  bvPar.postOrthonormalise = true;
-  bvPar.testVectorSetup    = true;
-  bvPar.maxIter            = 1;
-  BasisVectors basisVectors(FGrid, 0, nB);
-  basisVectors.InitRandom(FPRNG);
-  basisVectors.Generate(FGMRES, *MdagMOp, bvPar, [](int n){}, [](){}); // in initial setup we don't need any modifications via the callbacks
-
 #if defined(USE_NEW_COARSENING)
   Aggregates Aggs(CGrid, FGrid, 0, fastProjects);
-  Aggs.Create(basisVectors);
+  for(int i = 0; i < Aggs.Subspace().size(); ++i) random(FPRNG, Aggs.Subspace()[i]);
+  Aggs.Orthogonalise(1, 1); // check orthogonality, 1 pass of GS
 #else
   Aggregates Aggs(CGrid, FGrid, 0);
-  Aggs.Create(basisVectors());
+  Aggs.CreateSubspaceRandom(FPRNG);
+  performChiralDoubling(Aggs.subspace);
+  Aggs.Orthogonalise(1, 1); // check orthogonality, 1 pass of GS
 #endif
 
   /////////////////////////////////////////////////////////////////////////////
   //                  Setup of CoarsenedMatrix and Operator                  //
   /////////////////////////////////////////////////////////////////////////////
 
-  int hermitian = 0;
+  const int hermitian = 0;
 #if defined(USE_NEW_COARSENING)
   CoarseDiracMatrix Dc(*CGrid, *CrbGrid, speedLevel, hermitian); // test 0, 1, 2 for first param
 #else
   CoarseDiracMatrix Dc(*CGrid, *CrbGrid, hermitian);
 #endif
   Dc.CoarsenOperator(FGrid, *MdagMOp, Aggs);
-
-#if defined(USE_NEW_COARSENING)
-  for(int p = 0; p < Dc.geom_.npoint; ++p)
-    std::cout << "p = " << p << ", link = " << Dc.Y_[p] << std::endl;
-#else
-  for(int p = 0; p < Dc.geom.npoint; ++p)
-    std::cout << "p = " << p << ", link = " << Dc.A[p] << std::endl;
-#endif
 
   MdagMLinearOperator<CoarseDiracMatrix, CoarseVector> MdagMOp_Dc(Dc);
 
@@ -518,7 +501,7 @@ int main(int argc, char** argv) {
     ConjugateGradient<CoarseVector> CG(solverTolerance, maxIter);
     SchurRedBlackDiagMooeeSolve<CoarseVector> RBCG(CG);
     GeneralisedMinimalResidual<CoarseVector> GMRES(solverTolerance, maxIter, restartLength);
-    SchurRedBlackDiagMooeeNonHermSolve<CoarseVector> RBGMRES(GMRES);
+    NonHermitianSchurRedBlackDiagMooeeSolve<CoarseVector> RBGMRES(GMRES);
 
     // clang-format off
     Timer.Reset(); Timer.Start();
