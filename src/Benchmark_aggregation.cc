@@ -29,6 +29,7 @@ Author: Daniel Richtmann <daniel.richtmann@ur.de>
 #include <Grid/Grid.h>
 #include <Multigrid.h>
 #include <CoarsenedMatrixBaseline.h>
+#include <CoarsenedMatrixUpstream.h>
 #include <Benchmark_helpers.h>
 #include <Layout_converters.h>
 
@@ -108,7 +109,7 @@ int main(int argc, char** argv) {
   typedef CoarseningPolicy<LatticeFermion, nB, 2> TwoSpinCoarseningPolicy;
   typedef CoarseningPolicy<LatticeFermion, nB, 4> FourSpinCoarseningPolicy;
 
-  typedef Grid::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>           UpstreamCoarsenedMatrix;
+  typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> UpstreamCoarsenedMatrix;
   typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> BaselineCoarsenedMatrix;
   typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>                OneSpinCoarsenedMatrix;
   typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>                TwoSpinCoarsenedMatrix;
@@ -126,7 +127,7 @@ int main(int argc, char** argv) {
   typedef TwoSpinCoarsenedMatrix::LinkField     TwoSpinCoarseLinkField;
   typedef FourSpinCoarsenedMatrix::LinkField    FourSpinCoarseLinkField;
 
-  typedef Grid::Aggregation<vSpinColourVector, vTComplex, nBasis>           UpstreamAggregation;
+  typedef Grid::Upstream::Aggregation<vSpinColourVector, vTComplex, nBasis> UpstreamAggregation;
   typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis> BaselineAggregation;
   typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>                OneSpinAggregation;
   typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>                TwoSpinAggregation;
