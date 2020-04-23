@@ -42,7 +42,9 @@ using namespace Grid::Rework;
 #define NBASIS 40
 #endif
 
-// NOTE: These tests are written in analogy to tests/core/Test_wilson_clover.cc
+// NOTE: The tests in this file are written in analogy to
+// - tests/core/Test_wilson_even_odd.cc
+// - tests/core/Test_wilson_clover.cc
 
 int main(int argc, char** argv) {
   Grid_init(&argc, &argv);
@@ -165,7 +167,7 @@ int main(int argc, char** argv) {
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Testing that Dhop + Ddiag = Dunprec" << std::endl;
+    std::cout << GridLogMessage << "Testing that Dhop + Mdiag = Munprec" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
@@ -185,7 +187,7 @@ int main(int argc, char** argv) {
     diff = ref - res;
     auto absDev = norm2(diff);
     auto relDev = absDev / norm2(ref);
-    std::cout << GridLogMessage << "norm2(DUnprec), norm2(Dhop + Ddiag), abs. deviation, rel. deviation: "
+    std::cout << GridLogMessage << "norm2(Munprec), norm2(Dhop + Mdiag), abs. deviation, rel. deviation: "
               << norm2(ref) << " " << norm2(res) << " " << absDev << " " << relDev
               << " -> check " << ((relDev < checkTolerance) ? "passed" : "failed") << std::endl;
     if(relDev >= checkTolerance) abort();
@@ -193,7 +195,7 @@ int main(int argc, char** argv) {
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Testing that Deo + Doe = DhopUnprec" << std::endl;
+    std::cout << GridLogMessage << "Testing that Meo + Moe = Dhop" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
@@ -221,7 +223,7 @@ int main(int argc, char** argv) {
     diff = ref - r_eo;
     auto absDev = norm2(diff);
     auto relDev = absDev / norm2(ref);
-    std::cout << GridLogMessage << "norm2(DhopUnprec), norm2(Deo + Doe), abs. deviation, rel. deviation: "
+    std::cout << GridLogMessage << "norm2(Dhop), norm2(Meo + Moe), abs. deviation, rel. deviation: "
               << norm2(ref) << " " << norm2(r_eo) << " " << absDev << " " << relDev
               << " -> check " << ((relDev < checkTolerance) ? "passed" : "failed") << std::endl;
     if(relDev >= checkTolerance) abort();
@@ -229,7 +231,7 @@ int main(int argc, char** argv) {
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Test |(Im(v^dag D^dag D v)| = 0" << std::endl;
+    std::cout << GridLogMessage << "Test |(Im(v^dag M^dag M v)| = 0" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
@@ -245,7 +247,7 @@ int main(int argc, char** argv) {
     ComplexD dot = innerProduct(src, phi);
 
     auto relDev = std::abs(imag(dot)) / std::abs(real(dot));
-    std::cout << GridLogMessage << "Re(v^dag D^dag D v), Im(v^dag D^dag D v), rel.deviation: "
+    std::cout << GridLogMessage << "Re(v^dag M^dag M v), Im(v^dag M^dag M v), rel.deviation: "
               << real(dot) << " " << imag(dot) << " " << relDev
               << " -> check " << ((relDev < checkTolerance) ? "passed" : "failed") << std::endl;
     if(relDev >= checkTolerance) abort();
@@ -253,7 +255,7 @@ int main(int argc, char** argv) {
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Test |(Im(v^dag Dooee^dag Dooee v)| = 0 (full grid)" << std::endl;
+    std::cout << GridLogMessage << "Test |(Im(v^dag Mooee^dag Mooee v)| = 0 (full grid)" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
@@ -267,7 +269,7 @@ int main(int argc, char** argv) {
     ComplexD dot = innerProduct(src, phi);
 
     auto relDev = std::abs(imag(dot)) / std::abs(real(dot));
-    std::cout << GridLogMessage << "Re(v^dag Dooee^dag Dooee v), Im(v^dag Dooee^dag Dooee v), rel.deviation: "
+    std::cout << GridLogMessage << "Re(v^dag Mooee^dag Mooee v), Im(v^dag Mooee^dag Mooee v), rel.deviation: "
               << real(dot) << " " << imag(dot) << " " << relDev
               << " -> check " << ((relDev < checkTolerance) ? "passed" : "failed") << std::endl;
     if(relDev >= checkTolerance) abort();
@@ -275,7 +277,7 @@ int main(int argc, char** argv) {
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Test DooeeInv Dooee = 1 (full grid)" << std::endl;
+    std::cout << GridLogMessage << "Test MooeeInv Mooee = 1 (full grid)" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
@@ -299,7 +301,7 @@ int main(int argc, char** argv) {
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
     std::cout << GridLogMessage << "Test Ddagger is the dagger of D by requiring" << std::endl;
-    std::cout << GridLogMessage << " < phi | Deo | chi > * = < chi | Deo^dag| phi>" << std::endl;
+    std::cout << GridLogMessage << " < phi | Meo | chi > * = < chi | Meo^dag| phi>" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
@@ -428,7 +430,7 @@ int main(int argc, char** argv) {
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Testing EO operator is equal to the unprec" << std::endl;
+    std::cout << GridLogMessage << "Testing that Meo + Moe + Moo + Mee = Munprec" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
