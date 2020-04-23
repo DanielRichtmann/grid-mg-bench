@@ -136,26 +136,32 @@ int main(int argc, char** argv) {
   //                           Setup of Aggregation                          //
   /////////////////////////////////////////////////////////////////////////////
 
+  const int cb = 0;
 
-  UpstreamAggregation UpstreamAggs(CGrid, FGrid, 0);
-  BaselineAggregation BaselineAggs(CGrid, FGrid, 0);
-  TwoSpinAggregation  TwoSpinAggsDefault(CGrid, FGrid, 0, 0);
-  TwoSpinAggregation  TwoSpinAggsFast(CGrid, FGrid, 0, 1);
+  UpstreamAggregation UpstreamAggs(CGrid, FGrid, cb);
+  BaselineAggregation BaselineAggs(CGrid, FGrid, cb);
+  TwoSpinAggregation  TwoSpinAggsDefault(CGrid, FGrid, cb, 0);
+  TwoSpinAggregation  TwoSpinAggsFast(CGrid, FGrid, cb, 1);
+
+  const int checkOrthog = 1;
+  const int gsPasses    = 1;
+
+  // setup vectors once and distribute them to save time
+  // (we check agreement of different impls below)
 
   UpstreamAggs.CreateSubspaceRandom(FPRNG);
-  for(int i = 0; i < TwoSpinAggsDefault.Subspace().size(); ++i) {
-    TwoSpinAggsDefault.Subspace()[i] = UpstreamAggs.subspace[i];
-    TwoSpinAggsFast.Subspace()[i]    = UpstreamAggs.subspace[i];
-  }
+  for(int i = 0; i < TwoSpinAggsFast.Subspace().size(); ++i)
+    TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
+
+  performChiralDoubling(UpstreamAggs.subspace);
+  UpstreamAggs.Orthogonalise(checkOrthog, gsPasses);
+
   for(int i = 0; i < UpstreamAggs.subspace.size(); ++i)
     BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
-  performChiralDoubling(UpstreamAggs.subspace);
-  performChiralDoubling(BaselineAggs.subspace);
 
-  UpstreamAggs.Orthogonalise(1, 1);       // check orthogonality, 1 pass of GS
-  BaselineAggs.Orthogonalise(1, 1);       // check orthogonality, 1 pass of GS
-  TwoSpinAggsDefault.Orthogonalise(1, 1); // check orthogonality, 1 pass of GS
-  TwoSpinAggsFast.Orthogonalise(1, 1);    // check orthogonality, 1 pass of GS
+  TwoSpinAggsFast.Orthogonalise(checkOrthog, gsPasses);
+  for(int i = 0; i < TwoSpinAggsDefault.Subspace().size(); ++i)
+    TwoSpinAggsDefault.Subspace()[i] = TwoSpinAggsFast.Subspace()[i];
 
   /////////////////////////////////////////////////////////////////////////////
   //             Calculate numbers needed for performance figures            //
@@ -195,9 +201,6 @@ int main(int argc, char** argv) {
     BenchmarkFunction(BaselineAggs.ProjectToSubspace,       flop, byte, nIter, CoarseVecBaseline,       FineVec);
     BenchmarkFunction(TwoSpinAggsDefault.ProjectToSubspace, flop, byte, nIter, CoarseVecTwospinDefault, FineVec);
     BenchmarkFunction(TwoSpinAggsFast.ProjectToSubspace,    flop, byte, nIter, CoarseVecTwospinFast,    FineVec);
-
-    // prettyPrintProfiling("", TwoSpinAggsDefault.GetProfile(), GridTime(0), true);
-    // prettyPrintProfiling("", TwoSpinAggsFast.GetProfile(),    GridTime(0), true);
 
     // clang-format off
     printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecBaseline);
@@ -242,15 +245,17 @@ int main(int argc, char** argv) {
 
     auto nIterOne = 1;
 
+    const int checkOrthog = 0;
+    const int gsPasses = 1;
+
     UpstreamAggs.CreateSubspaceRandom(FPRNG);
     for(int i=0; i<TwoSpinAggsDefault.Subspace().size(); ++i) {
       TwoSpinAggsDefault.Subspace()[i] = UpstreamAggs.subspace[i];
       TwoSpinAggsFast.Subspace()[i]    = UpstreamAggs.subspace[i];
     }
+    performChiralDoubling(UpstreamAggs.subspace);
     for(int i = 0; i < UpstreamAggs.subspace.size(); ++i)
       BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
-    performChiralDoubling(UpstreamAggs.subspace);
-    performChiralDoubling(BaselineAggs.subspace);
 
     double flopLocalInnerProduct = FVolume * (8 * FSiteElems - 2);
     double byteLocalInnerProduct = FVolume * (2 * FSiteElems + 1 * 1) * sizeof(Complex);
@@ -279,10 +284,10 @@ int main(int argc, char** argv) {
     double flop = flopBlockNormalise * nBasis + (flopBlockInnerProduct + flopMinus + flopBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
     double byte = byteBlockNormalise * nBasis + (byteBlockInnerProduct + byteMinus + byteBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
 
-    BenchmarkFunction(UpstreamAggs.Orthogonalise,       flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
-    BenchmarkFunction(BaselineAggs.Orthogonalise,       flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
-    BenchmarkFunction(TwoSpinAggsDefault.Orthogonalise, flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
-    BenchmarkFunction(TwoSpinAggsFast.Orthogonalise,    flop, byte, nIterOne, 0, 1); // no orthog check, 1 pass
+    BenchmarkFunction(UpstreamAggs.Orthogonalise,       flop, byte, nIterOne, checkOrthog, gsPasses);
+    BenchmarkFunction(BaselineAggs.Orthogonalise,       flop, byte, nIterOne, checkOrthog, gsPasses);
+    BenchmarkFunction(TwoSpinAggsDefault.Orthogonalise, flop, byte, nIterOne, checkOrthog, gsPasses);
+    BenchmarkFunction(TwoSpinAggsFast.Orthogonalise,    flop, byte, nIterOne, checkOrthog, gsPasses);
 
     undoChiralDoubling(UpstreamAggs.subspace); // necessary for comparison
     undoChiralDoubling(BaselineAggs.subspace); // necessary for comparison

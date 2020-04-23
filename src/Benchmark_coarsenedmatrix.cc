@@ -163,35 +163,48 @@ int main(int argc, char** argv) {
   //                           Setup of Aggregation                          //
   /////////////////////////////////////////////////////////////////////////////
 
-  UpstreamAggregation UpstreamAggs(CGrid, FGrid, 0);
-  BaselineAggregation BaselineAggs(CGrid, FGrid, 0);
-  ImprovedAggregation ImprovedAggs(CGrid, FGrid, 0);
-  TwoSpinAggregation  TwoSpinAggsDefault(CGrid, FGrid, 0, 0);
-  TwoSpinAggregation  TwoSpinAggsFast(CGrid, FGrid, 0, 1);
+  const int cb = 0;
+
+  UpstreamAggregation UpstreamAggs(CGrid, FGrid, cb);
+  BaselineAggregation BaselineAggs(CGrid, FGrid, cb);
+  ImprovedAggregation ImprovedAggs(CGrid, FGrid, cb);
+  TwoSpinAggregation  TwoSpinAggsDefault(CGrid, FGrid, cb, 0);
+  TwoSpinAggregation  TwoSpinAggsFast(CGrid, FGrid, cb, 1);
+
+  const int checkOrthog = 1;
+  const int gsPasses = 1;
+
+  // setup vectors once and distribute them to save time
+  // (we check agreement of different impls in Benchmark_aggregation)
 
   UpstreamAggs.CreateSubspaceRandom(FPRNG);
-  for(int i = 0; i < TwoSpinAggsDefault.Subspace().size(); ++i) {
-    TwoSpinAggsDefault.Subspace()[i] = UpstreamAggs.subspace[i];
-    TwoSpinAggsFast.Subspace()[i]    = UpstreamAggs.subspace[i];
-  }
+  for(int i = 0; i < TwoSpinAggsFast.Subspace().size(); ++i)
+    TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
+
+  performChiralDoubling(UpstreamAggs.subspace);
+  UpstreamAggs.Orthogonalise(checkOrthog, gsPasses);
+
   for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) {
     BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
     ImprovedAggs.subspace[i] = UpstreamAggs.subspace[i];
   }
-  performChiralDoubling(UpstreamAggs.subspace);
-  performChiralDoubling(BaselineAggs.subspace);
-  performChiralDoubling(ImprovedAggs.subspace);
+
+  TwoSpinAggsFast.Orthogonalise(checkOrthog, gsPasses);
+  for(int i = 0; i < TwoSpinAggsDefault.Subspace().size(); ++i)
+    TwoSpinAggsDefault.Subspace()[i] = TwoSpinAggsFast.Subspace()[i];
 
   /////////////////////////////////////////////////////////////////////////////
   //                         Setup of CoarsenedMatrix                        //
   /////////////////////////////////////////////////////////////////////////////
 
-  UpstreamCoarsenedMatrix UpstreamCMat(*CGrid, 0);           // hermitian = 0
-  BaselineCoarsenedMatrix BaselineCMat(*CGrid, *CrbGrid, 0); // hermitian = 0
-  ImprovedCoarsenedMatrix ImprovedCMat(*CGrid, 0);           // hermitian = 0
-  TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel0(*CGrid, *CrbGrid, 0, 0); // speedLevel = 0, hermitian = 0
-  TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel1(*CGrid, *CrbGrid, 1, 0); // speedLevel = 1, hermitian = 0
-  TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel2(*CGrid, *CrbGrid, 2, 0); // speedLevel = 2, hermitian = 0
+  const int hermitian = 0;
+
+  UpstreamCoarsenedMatrix UpstreamCMat(*CGrid, hermitian);
+  BaselineCoarsenedMatrix BaselineCMat(*CGrid, *CrbGrid, hermitian);
+  ImprovedCoarsenedMatrix ImprovedCMat(*CGrid, hermitian);
+  TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel0(*CGrid, *CrbGrid, 0, hermitian); // speedLevel = 0
+  TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel1(*CGrid, *CrbGrid, 1, hermitian); // speedLevel = 1
+  TwoSpinCoarsenedMatrix  TwoSpinCMatSpeedLevel2(*CGrid, *CrbGrid, 2, hermitian); // speedLevel = 2
 
   /////////////////////////////////////////////////////////////////////////////
   //            Calculate performance figures for instrumentation            //
