@@ -154,6 +154,11 @@ int main(int argc, char** argv) {
   performChiralDoubling(UpstreamAggs.subspace);
   performChiralDoubling(BaselineAggs.subspace);
 
+  UpstreamAggs.Orthogonalise(1, 1);       // check orthogonality, 1 pass of GS
+  BaselineAggs.Orthogonalise(1, 1);       // check orthogonality, 1 pass of GS
+  TwoSpinAggsDefault.Orthogonalise(1, 1); // check orthogonality, 1 pass of GS
+  TwoSpinAggsFast.Orthogonalise(1, 1);    // check orthogonality, 1 pass of GS
+
   /////////////////////////////////////////////////////////////////////////////
   //             Calculate numbers needed for performance figures            //
   /////////////////////////////////////////////////////////////////////////////
