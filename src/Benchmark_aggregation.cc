@@ -57,6 +57,7 @@ int main(int argc, char** argv) {
   const int  nB        = nBasis / 2;
   Coordinate blockSize = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({4, 4, 4, 4}));
   int        nIter     = readFromCommandLineInt(&argc, &argv, "--niter", 10);
+  int        gsPasses  = readFromCommandLineInt(&argc, &argv, "--gspasses", 1);
   // clang-format on
 
   /////////////////////////////////////////////////////////////////////////////
@@ -144,7 +145,6 @@ int main(int argc, char** argv) {
   TwoSpinAggregation  TwoSpinAggsFast(CGrid, FGrid, cb, 1);
 
   const int checkOrthog = 1;
-  const int gsPasses    = 1;
 
   // setup vectors once and distribute them to save time
   // (we check agreement of different impls below)
@@ -154,12 +154,12 @@ int main(int argc, char** argv) {
     TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
 
   performChiralDoubling(UpstreamAggs.subspace);
-  UpstreamAggs.Orthogonalise(checkOrthog, gsPasses);
+  UpstreamAggs.Orthogonalise(checkOrthog, 1); // 1 gs pass
 
   for(int i = 0; i < UpstreamAggs.subspace.size(); ++i)
     BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
 
-  TwoSpinAggsFast.Orthogonalise(checkOrthog, gsPasses);
+  TwoSpinAggsFast.Orthogonalise(checkOrthog, 1); // 1 gs pass
   for(int i = 0; i < TwoSpinAggsDefault.Subspace().size(); ++i)
     TwoSpinAggsDefault.Subspace()[i] = TwoSpinAggsFast.Subspace()[i];
 
@@ -243,11 +243,6 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "Running benchmark for Orthogonalise" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
-    auto nIterOne = 1;
-
-    const int checkOrthog = 0;
-    const int gsPasses = 1;
-
     UpstreamAggs.CreateSubspaceRandom(FPRNG);
     for(int i=0; i<TwoSpinAggsDefault.Subspace().size(); ++i) {
       TwoSpinAggsDefault.Subspace()[i] = UpstreamAggs.subspace[i];
@@ -283,6 +278,9 @@ int main(int argc, char** argv) {
 
     double flop = flopBlockNormalise * nBasis + (flopBlockInnerProduct + flopMinus + flopBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
     double byte = byteBlockNormalise * nBasis + (byteBlockInnerProduct + byteMinus + byteBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
+
+    auto nIterOne = 1;
+    auto checkOrthog = 0;
 
     BenchmarkFunction(UpstreamAggs.Orthogonalise,       flop, byte, nIterOne, checkOrthog, gsPasses);
     BenchmarkFunction(BaselineAggs.Orthogonalise,       flop, byte, nIterOne, checkOrthog, gsPasses);
