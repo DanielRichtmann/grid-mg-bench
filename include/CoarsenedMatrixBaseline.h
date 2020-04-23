@@ -152,9 +152,7 @@ public:
   void CreateSubspaceRandom(GridParallelRNG &RNG){
     for(int i=0;i<nbasis;i++){
       random(RNG,subspace[i]);
-      std::cout<<GridLogMessage<<" norm subspace["<<i<<"] "<<norm2(subspace[i])<<std::endl;
     }
-    Orthogonalise();
   }
 
   /*
@@ -238,9 +236,6 @@ public:
       subspace[b]   = noise;
 
     }
-
-    Orthogonalise();
-
   }
 
   virtual void CreateSubspaceChebyshev(GridParallelRNG  &RNG,LinearOperatorBase<FineField> &hermop,int nn=nbasis) {
