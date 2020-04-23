@@ -484,6 +484,54 @@ int main(int argc, char** argv) {
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
+    std::cout << GridLogMessage << "Testing that MpcDagMpc is hermitian" << std::endl;
+    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
+
+    // clang-format off
+    CoarseVector phi(CGrid); random(CPRNG, phi);
+    CoarseVector chi(CGrid); random(CPRNG, chi);
+    CoarseVector chi_e(CrbGrid);   chi_e = Zero();
+    CoarseVector chi_o(CrbGrid);   chi_o = Zero();
+    CoarseVector dchi_e(CrbGrid); dchi_e = Zero();
+    CoarseVector dchi_o(CrbGrid); dchi_o = Zero();
+    CoarseVector phi_e(CrbGrid);   phi_e = Zero();
+    CoarseVector phi_o(CrbGrid);   phi_o = Zero();
+    CoarseVector dphi_e(CrbGrid); dphi_e = Zero();
+    CoarseVector dphi_o(CrbGrid); dphi_o = Zero();
+    RealD t1, t2;
+    // clang-format on
+
+    pickCheckerboard(Even, chi_e, chi);
+    pickCheckerboard(Odd, chi_o, chi);
+    pickCheckerboard(Even, phi_e, phi);
+    pickCheckerboard(Odd, phi_o, phi);
+
+    NonHermitianSchurDiagMooeeOperator<CoarseDiracMatrix,CoarseVector> NonHermOpEO(Dc);
+
+    // clang-format off
+    NonHermOpEO.MpcDagMpc(chi_e, dchi_e, t1, t2); std::cout << GridLogMessage << "Applied MpcDagMpc to chi_e" << std::endl;
+    NonHermOpEO.MpcDagMpc(chi_o, dchi_o, t1, t2); std::cout << GridLogMessage << "Applied MpcDagMpc to chi_o" << std::endl;
+    NonHermOpEO.MpcDagMpc(phi_e, dphi_e, t1, t2); std::cout << GridLogMessage << "Applied MpcDagMpc to phi_e" << std::endl;
+    NonHermOpEO.MpcDagMpc(phi_o, dphi_o, t1, t2); std::cout << GridLogMessage << "Applied MpcDagMpc to phi_o" << std::endl;
+    // clang-format on
+
+    ComplexD phiDchi_e = innerProduct(phi_e, dchi_e);
+    ComplexD phiDchi_o = innerProduct(phi_o, dchi_o);
+    ComplexD chiDphi_e = innerProduct(chi_e, dphi_e);
+    ComplexD chiDphi_o = innerProduct(chi_o, dphi_o);
+
+    std::cout << GridLogDebug << "norm dchi_e = " << norm2(dchi_e) << " norm dchi_o = " << norm2(dchi_o) << " norm dphi_e = " << norm2(dphi_e)
+              << " norm dphi_o = " << norm2(dphi_e) << std::endl;
+
+    std::cout << GridLogMessage << "e " << phiDchi_e << " " << chiDphi_e << std::endl;
+    std::cout << GridLogMessage << "o " << phiDchi_o << " " << chiDphi_o << std::endl;
+
+    std::cout << GridLogMessage << "phiDchi_e - conj(chiDphi_e) " << phiDchi_e - conj(chiDphi_e) << std::endl;
+    std::cout << GridLogMessage << "phiDchi_o - conj(chiDphi_o) " << phiDchi_o - conj(chiDphi_o) << std::endl;
+  }
+
+  {
+    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
     std::cout << GridLogMessage << "Comparing EO solve is with unprec one" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
