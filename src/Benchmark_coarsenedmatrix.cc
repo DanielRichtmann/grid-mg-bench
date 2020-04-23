@@ -131,6 +131,13 @@ int main(int argc, char** argv) {
   typedef CoarseningPolicy<LatticeFermion, nB, 2> TwoSpinCoarseningPolicy;
   typedef CoarseningPolicy<LatticeFermion, nB, 4> FourSpinCoarseningPolicy;
 
+  typedef Grid::Upstream::Aggregation<vSpinColourVector, vTComplex, nBasis>         UpstreamAggregation;
+  typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis>         BaselineAggregation;
+  typedef Grid::UpstreamImproved::Aggregation<vSpinColourVector, vTComplex, nBasis> ImprovedAggregation;
+  typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>                        OneSpinAggregation;
+  typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>                        TwoSpinAggregation;
+  typedef Grid::Rework::Aggregation<FourSpinCoarseningPolicy>                       FourSpinAggregation;
+
   typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>         UpstreamCoarsenedMatrix;
   typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>         BaselineCoarsenedMatrix;
   typedef Grid::UpstreamImproved::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> ImprovedCoarsenedMatrix;
@@ -151,13 +158,6 @@ int main(int argc, char** argv) {
   typedef OneSpinCoarsenedMatrix::LinkField     OneSpinCoarseLinkField;
   typedef TwoSpinCoarsenedMatrix::LinkField     TwoSpinCoarseLinkField;
   typedef FourSpinCoarsenedMatrix::LinkField    FourSpinCoarseLinkField;
-
-  typedef Grid::Upstream::Aggregation<vSpinColourVector, vTComplex, nBasis>         UpstreamAggregation;
-  typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis>         BaselineAggregation;
-  typedef Grid::UpstreamImproved::Aggregation<vSpinColourVector, vTComplex, nBasis> ImprovedAggregation;
-  typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>                        OneSpinAggregation;
-  typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>                        TwoSpinAggregation;
-  typedef Grid::Rework::Aggregation<FourSpinCoarseningPolicy>                       FourSpinAggregation;
 
   /////////////////////////////////////////////////////////////////////////////
   //                           Setup of Aggregation                          //
