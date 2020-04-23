@@ -503,9 +503,9 @@ public:
             Kernels::constructLinkField(i, Y_[self_stencil], iProjSplit);
             prof_.Stop("CoarsenOperator.ConstructLinksSelf");
           } else if(disp == +1) {
-            prof_.Start("CoarsenOperator.ConstructLinksPositive");
+            prof_.Start("CoarsenOperator.ConstructLinksProj");
             Kernels::constructLinkField(i, Y_[p], oProjSplit);
-            prof_.Stop("CoarsenOperator.ConstructLinksPositive");
+            prof_.Stop("CoarsenOperator.ConstructLinksProj");
           }
         }
       } else if(speedLevel_ == 2) { // save projects & save applications of backward links
@@ -560,9 +560,9 @@ public:
             Kernels::constructLinkField(i, Y_[self_stencil], iProjSplit);
             prof_.Stop("CoarsenOperator.ConstructLinksSelf");
           } else if(disp == +1) {
-            prof_.Start("CoarsenOperator.ConstructLinksPositive");
+            prof_.Start("CoarsenOperator.ConstructLinksProj");
             Kernels::constructLinkField(i, Y_[p], oProjSplit);
-            prof_.Stop("CoarsenOperator.ConstructLinksPositive");
+            prof_.Stop("CoarsenOperator.ConstructLinksProj");
           }
         }
       }
@@ -571,9 +571,9 @@ public:
 #undef k_loop_Ns_c
 
     if(speedLevel_ > 0) {
-      prof_.Start("CoarsenOperator.ConstructLinksNegative");
+      prof_.Start("CoarsenOperator.ConstructLinksComm");
       Kernels::shiftLinks(geom_, Y_, +1);
-      prof_.Stop("CoarsenOperator.ConstructLinksNegative");
+      prof_.Stop("CoarsenOperator.ConstructLinksComm");
     }
 
     InvertSelfStencilPoint();

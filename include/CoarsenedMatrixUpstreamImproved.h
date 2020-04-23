@@ -881,7 +881,7 @@ public:
 	    Grid::UpstreamImproved::blockMaskedInnerProduct(oZProj,omask,Subspace.subspace[j],Mphi);
 	    prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter");
 	    
-	    prof_.Start("CoarsenOperator.ConstructLinksNegative");
+	    prof_.Start("CoarsenOperator.ConstructLinksProj");
 	    auto iZProj_v = iZProj.View() ;
 	    auto oZProj_v = oZProj.View() ;
 	    auto A_p     =  A[p].View();
@@ -891,7 +891,7 @@ public:
 	    //      if( disp!= 0 ) { accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_p[ss](j,i),oZProj_v(ss)); });}
 	    //	    accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_self[ss](j,i),A_self(ss)(j,i)+iZProj_v(ss)); });
 
-	    prof_.Stop("CoarsenOperator.ConstructLinksNegative");
+	    prof_.Stop("CoarsenOperator.ConstructLinksProj");
 	  }
 	}
       }
@@ -1012,7 +1012,7 @@ public:
   }
     
   void ConstructRemainingLinks(void) {
-    prof_.Start("CoarsenOperator.ConstructRemainingLinks");
+    prof_.Start("CoarsenOperator.ConstructLinksComm");
     for(int p=0;p<geom.npoint;p++){
       int dir   = geom.directions[p];
       int disp  = geom.displacements[p];
@@ -1042,7 +1042,7 @@ public:
         }
       }
     }
-    prof_.Stop("CoarsenOperator.ConstructRemainingLinks");
+    prof_.Stop("CoarsenOperator.ConstructLinksComm");
   }
 
 };

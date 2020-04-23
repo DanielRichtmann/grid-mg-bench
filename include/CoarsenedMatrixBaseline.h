@@ -661,7 +661,7 @@ public:
         prof_.Stop("CoarsenOperator.ProjectToSubspace");
 	//	  blockProject(iProj,iblock,Subspace.subspace);
 	//	  blockProject(oProj,oblock,Subspace.subspace);
-        prof_.Start("CoarsenOperator.ConstructLinks");
+        prof_.Start("CoarsenOperator.ConstructLinksFull");
 	auto iProj_v = iProj.View() ;
 	auto oProj_v = oProj.View() ;
 	auto A_p     =  A[p].View();
@@ -674,7 +674,7 @@ public:
 	    A_self[ss](j,i) =	A_self[ss](j,i) + iProj_v[ss](j);
 	  }
 	});
-        prof_.Stop("CoarsenOperator.ConstructLinks");
+        prof_.Stop("CoarsenOperator.ConstructLinksFull");
       }
     }
 
