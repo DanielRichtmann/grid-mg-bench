@@ -574,6 +574,13 @@ public:
     double usecs =-usecond();
     // assert(geom.npoint==9);
 
+    // need to take references, otherwise we get illegal memory accesses
+    // happens since the lambda copies the this pointer which points to host memory, see
+    // - https://docs.nvidia.com/cuda/cuda-c-programming-guide/#star-this-capture
+    // - https://devblogs.nvidia.com/new-compiler-features-cuda-8/
+    auto& geom_    = geom;
+    auto& Stencil_ = Stencil;
+
     accelerator_for(sss, Grid()->oSites()*nbasis, Nsimd, {
       int ss = sss/nbasis;
       int b  = sss%nbasis;
@@ -583,14 +590,14 @@ public:
       StencilEntry *SE;
 
       int lane=SIMTlane(Nsimd);
-      for(int point=0;point<geom.npoint;point++){
+      for(int point=0;point<geom_.npoint;point++){
 
-	SE=Stencil.GetEntry(ptype,point,ss);
+	SE=Stencil_.GetEntry(ptype,point,ss);
 	  
 	if(SE->_is_local) { 
 	  nbr = coalescedReadPermute(in_v[SE->_offset],ptype,SE->_permute,lane);
 	} else {
-	  nbr = coalescedRead(Stencil.CommBuf()[SE->_offset],lane);
+	  nbr = coalescedRead(Stencil_.CommBuf()[SE->_offset],lane);
 	}
 	synchronise();
 
@@ -652,6 +659,12 @@ public:
     typedef decltype(coalescedRead(in_v[0])) calcVector;
     typedef decltype(coalescedRead(in_v[0](0))) calcComplex;
 
+    // need to take references, otherwise we get illegal memory accesses
+    // happens since the lambda copies the this pointer which points to host memory, see
+    // - https://docs.nvidia.com/cuda/cuda-c-programming-guide/#star-this-capture
+    // - https://devblogs.nvidia.com/new-compiler-features-cuda-8/
+    auto& Stencil_ = Stencil;
+
     accelerator_for(sss, Grid()->oSites()*nbasis, Nsimd, {
       int ss = sss/nbasis;
       int b  = sss%nbasis;
@@ -661,12 +674,12 @@ public:
       StencilEntry *SE;
 
       int lane=SIMTlane(Nsimd);
-      SE=Stencil.GetEntry(ptype,point,ss);
+      SE=Stencil_.GetEntry(ptype,point,ss);
 	  
       if(SE->_is_local) { 
 	nbr = coalescedReadPermute(in_v[SE->_offset],ptype,SE->_permute,lane);
       } else {
-	nbr = coalescedRead(Stencil.CommBuf()[SE->_offset],lane);
+	nbr = coalescedRead(Stencil_.CommBuf()[SE->_offset],lane);
       }
       synchronise();
 
@@ -683,14 +696,14 @@ public:
       int ptype;
       StencilEntry *SE;
       
-      SE=Stencil.GetEntry(ptype,point,ss);
+      SE=Stencil_.GetEntry(ptype,point,ss);
       
       if(SE->_is_local&&SE->_permute) {
 	permute(nbr,in_v[SE->_offset],ptype);
       } else if(SE->_is_local) {
 	nbr = in_v[SE->_offset];
       } else {
-	nbr = Stencil.CommBuf()[SE->_offset];
+	nbr = Stencil_.CommBuf()[SE->_offset];
       }
       synchronise();
 
