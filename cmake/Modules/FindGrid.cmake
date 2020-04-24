@@ -9,6 +9,7 @@
 #  Grid_FOUND - Whether Grid was correctly detected
 #  Grid_PREFIX - The installation prefix for Grid
 #  Grid_CXX - The compiler used to build Grid
+#  Grid_CXXLD - The linker used to link Grid
 #  Grid_CXXFLAGS - The cxx flags used to build Grid
 #  Grid_LDFLAGS - The linker flags used to build Grid
 #  Grid_LIBS - The libraries Grid uses
@@ -39,6 +40,7 @@ if(EXISTS "${grid_config_binary}")
     set(Grid_FOUND TRUE)
     callconfigbinary(${grid_config_binary} --prefix Grid_PREFIX)
     callconfigbinary(${grid_config_binary} --cxx Grid_CXX)
+    callconfigbinary(${grid_config_binary} --cxxld Grid_CXXLD)
     callconfigbinary(${grid_config_binary} --cxxflags Grid_CXXFLAGS)
     callconfigbinary(${grid_config_binary} --ldflags Grid_LDFLAGS)
     callconfigbinary(${grid_config_binary} --libs Grid_LIBS)
