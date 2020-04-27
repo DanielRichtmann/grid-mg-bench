@@ -116,8 +116,9 @@ public:
     auto in_v  = in.View();
     auto out_v = out.View();
 
-    typedef LatticeView<SiteLinkField>       LinkFieldView;
-    typedef decltype(coalescedRead(in_v[0])) SiteSpinorCR;
+    typedef LatticeView<SiteLinkField>               LinkFieldView;
+    typedef decltype(coalescedRead(in_v[0]))         SiteSpinorCR;
+    typedef decltype(coalescedRead(in_v[0]()(0)(0))) SiteScalarCR;
 
     // need to access data per raw pointer on GPU
     auto  Y_v_c   = getViewContainer(Y_);
@@ -130,8 +131,12 @@ public:
     Geometry& geom = geom_;
     CartesianStencil<SiteSpinor, SiteSpinor, int>& stencil = stencil_;
 
-    accelerator_for(ss, Grid()->oSites(), Simd::Nsimd(), {
-      SiteSpinorCR  res = Zero();
+    accelerator_for(sss, Grid()->oSites()*Ns_c*Nc_c, Simd::Nsimd(), {
+      int ss  = sss/(Ns_c*Nc_c);
+      int s1  = (sss%(Ns_c*Nc_c))/Nc_c;
+      int c1  = sss - s1 * Nc_c - ss*Ns_c*Nc_c;
+
+      SiteScalarCR  res = 0;
       SiteSpinorCR  nbr;
       int           lane = SIMTlane(Simd::Nsimd());
       int           ptype;
@@ -147,9 +152,12 @@ public:
 
         synchronise();
 
-        res = res + coalescedRead(Y_v_c_p[point][ss]) * nbr;
+        for(int s2=0;s2<Ns_c;s2++) {
+          for(int c2=0;c2<Nc_c;c2++)
+            res = res + coalescedRead(Y_v_c_p[point][ss]()(s1,s2)(c1,c2)) * nbr()(s2)(c2);
+        }
       }
-      coalescedWrite(out_v[ss], res, lane);
+      coalescedWrite(out_v[ss]()(s1)(c1), res, lane);
     });
     return norm2(out);
   }
@@ -242,14 +250,19 @@ public:
     auto out_v     = out.View();
     auto Y_point_v = Y_[point].View();
 
-    typedef decltype(coalescedRead(in_v[0])) SiteSpinorCR;
+    typedef decltype(coalescedRead(in_v[0]))         SiteSpinorCR;
+    typedef decltype(coalescedRead(in_v[0]()(0)(0))) SiteScalarCR;
 
     // need to take a reference, otherwise we get illegal memory accesses
     // see links above for reason
     CartesianStencil<SiteSpinor, SiteSpinor, int>& stencil = stencil_;
 
-    accelerator_for(ss, Grid()->oSites(), Simd::Nsimd(), {
-      SiteSpinorCR    res = Zero();
+    accelerator_for(sss, Grid()->oSites()*Ns_c*Nc_c, Simd::Nsimd(), {
+      int ss  = sss/(Ns_c*Nc_c);
+      int s1  = (sss%(Ns_c*Nc_c))/Nc_c;
+      int c1  = sss - s1 * Nc_c - ss*Ns_c*Nc_c;
+
+      SiteScalarCR    res = 0;
       SiteSpinorCR    nbr;
       int             lane = SIMTlane(Simd::Nsimd());
       int             ptype;
@@ -264,9 +277,12 @@ public:
 
       synchronise();
 
-      res = res + Y_point_v(ss) * nbr;
+      for(int s2=0;s2<Ns_c;s2++) {
+        for(int c2=0;c2<Nc_c;c2++)
+          res = res + coalescedRead(Y_point_v[ss]()(s1,s2)(c1,c2)) * nbr()(s2)(c2);
+      }
 
-      coalescedWrite(out_v[ss], res, lane);
+      coalescedWrite(out_v[ss]()(s1)(c1), res, lane);
     });
   }
 
@@ -288,8 +304,9 @@ public:
       auto tmp_v  = tmp.View();
       auto tmp2_v = tmp2.View();
 
-      typedef LatticeView<SiteLinkField>        LinkFieldView;
-      typedef decltype(coalescedRead(tmp_v[0])) SiteSpinorCR;
+      typedef LatticeView<SiteLinkField>                LinkFieldView;
+      typedef decltype(coalescedRead(tmp_v[0]))         SiteSpinorCR;
+      typedef decltype(coalescedRead(tmp_v[0]()(0)(0))) SiteScalarCR;
 
       // need to access data per raw pointer on GPU
       auto  Y_v_c   = getViewContainer(Y);
@@ -299,8 +316,12 @@ public:
       // see links above for reason
       Geometry& geom = geom_;
 
-      accelerator_for(ss, tmp.Grid()->oSites(), Simd::Nsimd(), {
-        SiteSpinorCR    res = Zero();
+      accelerator_for(sss, tmp.Grid()->oSites()*Ns_c*Nc_c, Simd::Nsimd(), {
+        int ss  = sss/(Ns_c*Nc_c);
+        int s1  = (sss%(Ns_c*Nc_c))/Nc_c;
+        int c1  = sss - s1 * Nc_c - ss*Ns_c*Nc_c;
+
+        SiteScalarCR    res = 0;
         SiteSpinorCR    nbr;
         int             lane = SIMTlane(Simd::Nsimd());
         int             ptype;
@@ -317,10 +338,13 @@ public:
 
             synchronise();
 
-            res = res + coalescedRead(Y_v_c_p[point][ss]) * nbr;
+            for(int s2=0;s2<Ns_c;s2++) {
+              for(int c2=0;c2<Nc_c;c2++)
+                res = res + coalescedRead(Y_v_c_p[point][ss]()(s1,s2)(c1,c2)) * nbr()(s2)(c2);
+            }
           }
         }
-        coalescedWrite(tmp2_v[ss], res, lane);
+        coalescedWrite(tmp2_v[ss]()(s1)(c1), res, lane);
       });
       G5C(out, tmp2); // FIXME: This explicitly ties us to Galerkin coarsening
     } else {
@@ -330,8 +354,9 @@ public:
       auto in_v  = in.View();
       auto out_v = out.View();
 
-      typedef LatticeView<SiteLinkField>       LinkFieldView;
-      typedef decltype(coalescedRead(in_v[0])) SiteSpinorCR;
+      typedef LatticeView<SiteLinkField>               LinkFieldView;
+      typedef decltype(coalescedRead(in_v[0]))         SiteSpinorCR;
+      typedef decltype(coalescedRead(in_v[0]()(0)(0))) SiteScalarCR;
 
       // need to access data per raw pointer on GPU
       auto  Y_v_c   = getViewContainer(Y);
@@ -341,8 +366,12 @@ public:
       // see links above for reason
       Geometry& geom = geom_;
 
-      accelerator_for(ss, in.Grid()->oSites(), Simd::Nsimd(), {
-        SiteSpinorCR    res = Zero();
+      accelerator_for(sss, in.Grid()->oSites()*Ns_c*Nc_c, Simd::Nsimd(), {
+        int ss  = sss/(Ns_c*Nc_c);
+        int s1  = (sss%(Ns_c*Nc_c))/Nc_c;
+        int c1  = sss - s1 * Nc_c - ss*Ns_c*Nc_c;
+
+        SiteScalarCR    res = 0.;
         SiteSpinorCR    nbr;
         int             lane = SIMTlane(Simd::Nsimd());
         int             ptype;
@@ -359,10 +388,13 @@ public:
 
             synchronise();
 
-            res = res + coalescedRead(Y_v_c_p[point][ss]) * nbr;
+            for(int s2=0;s2<Ns_c;s2++) {
+              for(int c2=0;c2<Nc_c;c2++)
+                res = res + coalescedRead(Y_v_c_p[point][ss]()(s1,s2)(c1,c2)) * nbr()(s2)(c2);
+            }
           }
         }
-        coalescedWrite(out_v[ss], res, lane);
+        coalescedWrite(out_v[ss]()(s1)(c1), res, lane);
       });
     }
   }
