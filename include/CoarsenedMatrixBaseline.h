@@ -758,7 +758,7 @@ public:
 
       for (int i = 0; i < nbasis; ++i)
         for (int j = 0; j < nbasis; ++j)
-          EigenSelfStencil(i, j) = TensorRemove(SelfStencilLink(i, j));
+          EigenSelfStencil(i, j) = static_cast<ComplexD>(TensorRemove(SelfStencilLink(i, j)));
 
       EigenInvSelfStencil = EigenSelfStencil.inverse();
 

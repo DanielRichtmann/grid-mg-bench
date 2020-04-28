@@ -175,7 +175,7 @@ public:
           for(int c2 = 0; c2 < Nc_c; ++c2) {
             int n1           = s1 * Nc_c + c1;
             int n2           = s2 * Nc_c + c2;
-            eigenMat(n1, n2) = linkMat()(s1, s2)(c1, c2);
+            eigenMat(n1, n2) = static_cast<ComplexD>(linkMat()(s1, s2)(c1, c2));
           }
   }
 
