@@ -270,8 +270,9 @@ void prettyPrintProfiling(std::string const& prefix,
                 << prefix     << (prefix.empty() ? "" : " : ")
                 << std::setw(width)
                 << elem.first << " : "
-                << Sec(usec)
-                << ((usecTotal != 0.0) ? " => " : "")
+                << Sec(usec) << " "
+                << Calls(mgpd.Calls())
+                << ((usecTotal != 0.0) ? " " : "")
                 << TimeFraction(usec, usecTotal)
                 << std::endl;
     }
