@@ -658,7 +658,7 @@ public:
         prof_.Start("CoarsenOperator.ProjectToSubspace");
 	Subspace.ProjectToSubspace(iProj,iblock);
 	Subspace.ProjectToSubspace(oProj,oblock);
-        prof_.Stop("CoarsenOperator.ProjectToSubspace");
+        prof_.Stop("CoarsenOperator.ProjectToSubspace", 2);
 	//	  blockProject(iProj,iblock,Subspace.subspace);
 	//	  blockProject(oProj,oblock,Subspace.subspace);
         prof_.Start("CoarsenOperator.ConstructLinksFull");
