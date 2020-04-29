@@ -2,7 +2,7 @@
 
     Grid physics library, www.github.com/paboyle/Grid
 
-    Source file: ./benchmarks/Benchmark_coarsenedmatrix.cc
+    Source file: ./benchmarks/Benchmark_create_coarse_operator.cc
 
     Copyright (C) 2015-2018
 
@@ -212,17 +212,7 @@ int main(int argc, char** argv) {
   UpstreamCoarsenedMatrix UpstreamCMat(*CGrid, hermitian);
   BaselineCoarsenedMatrix BaselineCMat(*CGrid, *CrbGrid, hermitian);
   ImprovedCoarsenedMatrix ImprovedCMat(*CGrid, hermitian);
-  TwoSpinCoarsenedMatrix  TwoSpinCMat(*CGrid, *CrbGrid, 2, hermitian); // speedLevel = 2 (affects only CoarsenOperator)
-
-  // coarsen operator once and distribute coarse link fields to save time
-  // (we check agreement of different impls below)
-
-  TwoSpinCMat.CoarsenOperator(FGrid, LinOp, TwoSpinAggs);
-  for(int p = 0; p < TwoSpinCMat.geom_.npoint; ++p) {
-    convertLayout(TwoSpinCMat.Y_[p], UpstreamCMat.A[p]);
-    BaselineCMat.A[p] = UpstreamCMat.A[p];
-    ImprovedCMat.A[p] = UpstreamCMat.A[p];
-  }
+  TwoSpinCoarsenedMatrix  TwoSpinCMat(*CGrid, *CrbGrid, 2, hermitian); // speedLevel = 2 (changed below)
 
   /////////////////////////////////////////////////////////////////////////////
   //            Calculate performance figures for instrumentation            //
@@ -245,99 +235,6 @@ int main(int argc, char** argv) {
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Running benchmark for M" << std::endl;
-    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-
-    // clang-format off
-    UpstreamCoarseVector CoarseVecUpstreamIn(CGrid);  random(CPRNG, CoarseVecUpstreamIn);
-    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecUpstreamIn, CoarseVecTwospinIn);
-    UpstreamCoarseVector CoarseVecUpstreamOut(CGrid); CoarseVecUpstreamOut = Zero();
-    TwoSpinCoarseVector  CoarseVecTwospinOut(CGrid);  CoarseVecTwospinOut  = Zero();
-    UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
-    // clang-format on
-
-    double flop = CVolume * ((nStencil * (8 * CSiteElems * CSiteElems - 2 * CSiteElems) + nAccum * 2 * CSiteElems) + 8 * CSiteElems);
-    double byte = CVolume * ((nStencil * (CSiteElems * CSiteElems + CSiteElems) + CSiteElems) + CSiteElems) * sizeof(Complex);
-
-    BenchmarkFunction(UpstreamCMat.M, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
-    BenchmarkFunction(TwoSpinCMat.M,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
-
-    convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
-    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
-  }
-
-  {
-    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Running benchmark for Mdag" << std::endl;
-    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-
-    // clang-format off
-    UpstreamCoarseVector CoarseVecUpstreamIn(CGrid);  random(CPRNG, CoarseVecUpstreamIn);
-    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecUpstreamIn, CoarseVecTwospinIn);
-    UpstreamCoarseVector CoarseVecUpstreamOut(CGrid); CoarseVecUpstreamOut = Zero();
-    TwoSpinCoarseVector  CoarseVecTwospinOut(CGrid);  CoarseVecTwospinOut  = Zero();
-    UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
-    // clang-format on
-
-    // NOTE: these values are based on Galerkin coarsening, i.e., Mdag = g5c * M * g5c
-    double flop = CVolume * ((nStencil * (8 * CSiteElems * CSiteElems - 2 * CSiteElems) + nAccum * 2 * CSiteElems) + 8 * CSiteElems) + 2 * CVolume * (3 * CSiteElems);
-    double byte = CVolume * ((nStencil * (CSiteElems * CSiteElems + CSiteElems) + CSiteElems) + CSiteElems) * sizeof(Complex) + 2 * CVolume * (3 * CSiteElems) * sizeof(Complex);
-
-    BenchmarkFunction(UpstreamCMat.Mdag, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
-    BenchmarkFunction(TwoSpinCMat.Mdag,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
-
-    convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
-    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
-  }
-
-  {
-    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Running benchmark for Mdir" << std::endl;
-    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-
-    // clang-format off
-    UpstreamCoarseVector CoarseVecUpstreamIn(CGrid);  random(CPRNG, CoarseVecUpstreamIn);
-    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecUpstreamIn, CoarseVecTwospinIn);
-    UpstreamCoarseVector CoarseVecUpstreamOut(CGrid); CoarseVecUpstreamOut = Zero();
-    TwoSpinCoarseVector  CoarseVecTwospinOut(CGrid);  CoarseVecTwospinOut  = Zero();
-    UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
-    // clang-format on
-
-    double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
-    double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
-
-    BenchmarkFunction(UpstreamCMat.Mdir, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut, 2, 1);
-    BenchmarkFunction(TwoSpinCMat.Mdir,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
-
-    convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
-    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
-  }
-
-  {
-    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Running benchmark for Mdiag" << std::endl;
-    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-
-    // clang-format off
-    UpstreamCoarseVector CoarseVecUpstreamIn(CGrid);  random(CPRNG, CoarseVecUpstreamIn);
-    TwoSpinCoarseVector  CoarseVecTwospinIn(CGrid);   convertLayout(CoarseVecUpstreamIn, CoarseVecTwospinIn);
-    UpstreamCoarseVector CoarseVecUpstreamOut(CGrid); CoarseVecUpstreamOut = Zero();
-    TwoSpinCoarseVector  CoarseVecTwospinOut(CGrid);  CoarseVecTwospinOut  = Zero();
-    UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
-    // clang-format on
-
-    double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
-    double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
-
-    BenchmarkFunction(UpstreamCMat.Mdiag, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
-    BenchmarkFunction(TwoSpinCMat.Mdiag,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
-
-    convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
-    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
-  }
-
-  {
-    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
     std::cout << GridLogMessage << "Running benchmark for CoarsenOperator" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
@@ -350,13 +247,14 @@ int main(int argc, char** argv) {
 
     // Upstream = Reference (always run) //////////////////////////////////////
 
-    // NOTE: For some reason, this crashes on GPU with a bus error when I uncomment this
     BenchmarkFunction(UpstreamCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, UpstreamAggs);
     auto profResults = UpstreamCMat.GetProfile(); UpstreamCMat.ResetProfile();
     prettyPrintProfiling("Upstream", profResults, profResults["CoarsenOperator.Total"].t, false);
 
     for(auto&& elem : toRun) {
       // Baseline = state when I started working ////////////////////////////////
+
+      std::cout << "Running benchmark for configuration " << elem << std::endl;
 
       if(elem == "Baseline" || runAll) {
         BenchmarkFunction(BaselineCMat.CoarsenOperator, flop, byte, nIterOne, FGrid, LinOp, BaselineAggs);
