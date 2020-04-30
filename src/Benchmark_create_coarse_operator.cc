@@ -62,6 +62,8 @@ int main(int argc, char** argv) {
   std::vector<std::string> toRun = readFromCommandLineCSL(&argc, &argv, "--torun", {"Speed2FastProj"});
   // clang-format on
 
+  std::cout << GridLogMessage << "Compiled with nBasis = " << nBasis << " -> nB = " << nB << std::endl;
+
   /////////////////////////////////////////////////////////////////////////////
   //                            Print warning/info                           //
   /////////////////////////////////////////////////////////////////////////////

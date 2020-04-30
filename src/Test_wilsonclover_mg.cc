@@ -74,6 +74,8 @@ int main(int argc, char **argv) {
   static_assert((nbasis & 0x1) == 0, "");
 #endif
 
+  std::cout << GridLogMessage << "Compiled with nBasis = " << nbasis << " -> nB = " << nbasis / 2 << std::endl;
+
   std::vector<int> fSeeds({1, 2, 3, 4});
   GridParallelRNG  fPRNG(FGrid);
   fPRNG.SeedFixedIntegers(fSeeds);

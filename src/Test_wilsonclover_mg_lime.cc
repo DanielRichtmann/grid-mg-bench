@@ -111,6 +111,8 @@ int main(int argc, char **argv) {
   // Note: We do chiral doubling, so actually only nbasis/2 full basis vectors are used
   const int nbasis = 40;
 
+  std::cout << GridLogMessage << "Compiled with nBasis = " << nbasis << " -> nB = " << nbasis / 2 << std::endl;
+
   WilsonCloverFermionD Dwc_d(Umu_d, *FGrid_d, *FrbGrid_d, mass, csw_r, csw_t);
   WilsonCloverFermionF Dwc_f(Umu_f, *FGrid_f, *FrbGrid_f, mass, csw_r, csw_t);
 

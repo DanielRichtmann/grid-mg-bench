@@ -47,9 +47,11 @@ int main(int argc, char** argv) {
 
   // clang-format off
   const int nBasis     = NBASIS; static_assert((nBasis & 0x1) == 0, "");
-  const int  nB        = nBasis / 2;
+  const int nB         = nBasis / 2;
   Coordinate blockSize = Coordinate({2, 2, 2, 2});
   // clang-format on
+
+  std::cout << GridLogMessage << "Compiled with nBasis = " << nBasis << " -> nB = " << nB << std::endl;
 
   /////////////////////////////////////////////////////////////////////////////
   //                              General setup                              //

@@ -62,6 +62,8 @@ int main(int argc, char** argv) {
   int        speedLevel   = readFromCommandLineInt(&argc, &argv, "--speedlevel", 0);
   // clang-format on
 
+  std::cout << GridLogMessage << "Compiled with nBasis = " << nBasis << " -> nB = " << nB << std::endl;
+
   /////////////////////////////////////////////////////////////////////////////
   //                              General setup                              //
   /////////////////////////////////////////////////////////////////////////////

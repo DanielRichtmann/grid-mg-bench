@@ -60,6 +60,8 @@ int main(int argc, char** argv) {
   int        gsPasses  = readFromCommandLineInt(&argc, &argv, "--gspasses", 1);
   // clang-format on
 
+  std::cout << GridLogMessage << "Compiled with nBasis = " << nBasis << " -> nB = " << nB << std::endl;
+
   /////////////////////////////////////////////////////////////////////////////
   //                              General setup                              //
   /////////////////////////////////////////////////////////////////////////////
