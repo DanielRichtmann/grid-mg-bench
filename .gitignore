@@ -37,3 +37,7 @@
 
 # Build directory
 build
+
+# Output files
+*.log
+*.out
