@@ -54,9 +54,10 @@ int main(int argc, char** argv) {
   /////////////////////////////////////////////////////////////////////////////
 
   // clang-format off
-  const int  nBasis = NBASIS; static_assert((nBasis & 0x1) == 0, "");
-  const int  nB     = nBasis / 2;
-  int        nIter  = readFromCommandLineInt(&argc, &argv, "--niter", 1000);
+  const int  nBasis   = NBASIS; static_assert((nBasis & 0x1) == 0, "");
+  const int  nB       = nBasis / 2;
+  uint64_t   nIterMin = readFromCommandLineInt(&argc, &argv, "--miniter", 1000);
+  uint64_t   nSecMin  = readFromCommandLineInt(&argc, &argv, "--minsec", 5);
   // clang-format on
 
   std::cout << GridLogMessage << "Compiled with nBasis = " << nBasis << " -> nB = " << nB << std::endl;
@@ -161,8 +162,8 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "mine flop, byte: " << flop << ", " << byte << std::endl;
     std::cout << GridLogMessage << "peter flop, byte: " << flop_peter << ", " << byte_peter << std::endl;
 
-    BenchmarkFunction(UpstreamCMat.M, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
-    BenchmarkFunction(TwoSpinCMat.M,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
+    BenchmarkFunction(UpstreamCMat.M, flop, byte, nIterMin, nSecMin, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
+    BenchmarkFunction(TwoSpinCMat.M,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
     printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
@@ -185,8 +186,8 @@ int main(int argc, char** argv) {
     double flop = CVolume * ((nStencil * (8 * CSiteElems * CSiteElems - 2 * CSiteElems) + nAccum * 2 * CSiteElems) + 8 * CSiteElems) + 2 * CVolume * (3 * CSiteElems);
     double byte = CVolume * ((nStencil * (CSiteElems * CSiteElems + CSiteElems) + CSiteElems) + CSiteElems) * sizeof(Complex) + 2 * CVolume * (3 * CSiteElems) * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamCMat.Mdag, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
-    BenchmarkFunction(TwoSpinCMat.Mdag,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
+    BenchmarkFunction(UpstreamCMat.Mdag, flop, byte, nIterMin, nSecMin, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
+    BenchmarkFunction(TwoSpinCMat.Mdag,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
     printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
@@ -208,8 +209,8 @@ int main(int argc, char** argv) {
     double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
     double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamCMat.Mdir, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut, 2, 1);
-    BenchmarkFunction(TwoSpinCMat.Mdir,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
+    BenchmarkFunction(UpstreamCMat.Mdir, flop, byte, nIterMin, nSecMin, CoarseVecUpstreamIn, CoarseVecUpstreamOut, 2, 1);
+    BenchmarkFunction(TwoSpinCMat.Mdir,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
     printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
@@ -231,8 +232,8 @@ int main(int argc, char** argv) {
     double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
     double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamCMat.Mdiag, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
-    BenchmarkFunction(TwoSpinCMat.Mdiag,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut);
+    BenchmarkFunction(UpstreamCMat.Mdiag, flop, byte, nIterMin, nSecMin, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
+    BenchmarkFunction(TwoSpinCMat.Mdiag,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
     printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
@@ -254,8 +255,8 @@ int main(int argc, char** argv) {
   //   double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
   //   double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
 
-  //   BenchmarkFunction(UpstreamCMat.Mdir, flop, byte, nIter, CoarseVecUpstreamIn, CoarseVecUpstreamOut, 2, 1);
-  //   BenchmarkFunction(TwoSpinCMat.Mdir,  flop, byte, nIter, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
+  //   BenchmarkFunction(UpstreamCMat.Mdir, flop, byte, nIterMin, nSecMin, CoarseVecUpstreamIn, CoarseVecUpstreamOut, 2, 1);
+  //   BenchmarkFunction(TwoSpinCMat.Mdir,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
 
   //   convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
   //   printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);

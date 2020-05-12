@@ -27,11 +27,15 @@
 /*  END LEGAL */
 
 #include <Grid/Grid.h>
+#include <Benchmark_helpers.h>
 
 using namespace Grid;
+using namespace Grid::BenchmarkHelpers;
 
 int main(int argc, char** argv) {
   Grid_init(&argc, &argv);
+
+  int nIter = readFromCommandLineInt(&argc, &argv, "--niter", 1000);
 
   // clang-format off
   GridCartesian*         UGrid   = SpaceTimeGrid::makeFourDimGrid(GridDefaultLatt(), GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
@@ -66,8 +70,6 @@ int main(int argc, char** argv) {
 
   MdagMLinearOperator<WilsonFermionR, LatticeFermion> MdagMOpDw(Dw);
   MdagMLinearOperator<WilsonCloverFermionR, LatticeFermion> MdagMOpDwc(Dwc);
-
-  int nIter = 100;
 
   double tWilsonM     = 0.;
   double tWilsonDhop  = 0.;

@@ -56,7 +56,8 @@ int main(int argc, char** argv) {
   const int  nBasis    = NBASIS; static_assert((nBasis & 0x1) == 0, "");
   const int  nB        = nBasis / 2;
   Coordinate blockSize = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({4, 4, 4, 4}));
-  int        nIter     = readFromCommandLineInt(&argc, &argv, "--niter", 10);
+  uint64_t   nIterMin  = readFromCommandLineInt(&argc, &argv, "--miniter", 1000);
+  uint64_t   nSecMin   = readFromCommandLineInt(&argc, &argv, "--minsec", 5);
   int        gsPasses  = readFromCommandLineInt(&argc, &argv, "--gspasses", 1);
   // clang-format on
 
@@ -199,10 +200,10 @@ int main(int argc, char** argv) {
     double flop = FVolume * (8 * FSiteElems) * nBasis;
     double byte = FVolume * (2 * 1 + 2 * FSiteElems) * nBasis * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamAggs.ProjectToSubspace,    flop, byte, nIter, CoarseVecUpstream,    FineVec);
-    BenchmarkFunction(BaselineAggs.ProjectToSubspace,    flop, byte, nIter, CoarseVecBaseline,    FineVec);
-    BenchmarkFunction(TwoSpinAggsSlow.ProjectToSubspace, flop, byte, nIter, CoarseVecTwospinSlow, FineVec);
-    BenchmarkFunction(TwoSpinAggsFast.ProjectToSubspace, flop, byte, nIter, CoarseVecTwospinFast, FineVec);
+    BenchmarkFunction(UpstreamAggs.ProjectToSubspace,    flop, byte, nIterMin, nSecMin, CoarseVecUpstream,    FineVec);
+    BenchmarkFunction(BaselineAggs.ProjectToSubspace,    flop, byte, nIterMin, nSecMin, CoarseVecBaseline,    FineVec);
+    BenchmarkFunction(TwoSpinAggsSlow.ProjectToSubspace, flop, byte, nIterMin, nSecMin, CoarseVecTwospinSlow, FineVec);
+    BenchmarkFunction(TwoSpinAggsFast.ProjectToSubspace, flop, byte, nIterMin, nSecMin, CoarseVecTwospinFast, FineVec);
 
     // clang-format off
     printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecBaseline);
@@ -230,10 +231,10 @@ int main(int argc, char** argv) {
     double flop = FVolume * (8 * (nBasis - 1) + 6) * FSiteElems;
     double byte = FVolume * ((1 * 1 + 3 * FSiteElems) * (nBasis - 1) + (1 * 1 + 2 * FSiteElems) * 1) * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamAggs.PromoteFromSubspace,    flop, byte, nIter, CoarseVecUpstream,    FineVecUpstream);
-    BenchmarkFunction(BaselineAggs.PromoteFromSubspace,    flop, byte, nIter, CoarseVecBaseline,    FineVecBaseline);
-    BenchmarkFunction(TwoSpinAggsSlow.PromoteFromSubspace, flop, byte, nIter, CoarseVecTwospinSlow, FineVecTwospinSlow);
-    BenchmarkFunction(TwoSpinAggsFast.PromoteFromSubspace, flop, byte, nIter, CoarseVecTwospinFast, FineVecTwospinFast);
+    BenchmarkFunction(UpstreamAggs.PromoteFromSubspace,    flop, byte, nIterMin, nSecMin, CoarseVecUpstream,    FineVecUpstream);
+    BenchmarkFunction(BaselineAggs.PromoteFromSubspace,    flop, byte, nIterMin, nSecMin, CoarseVecBaseline,    FineVecBaseline);
+    BenchmarkFunction(TwoSpinAggsSlow.PromoteFromSubspace, flop, byte, nIterMin, nSecMin, CoarseVecTwospinSlow, FineVecTwospinSlow);
+    BenchmarkFunction(TwoSpinAggsFast.PromoteFromSubspace, flop, byte, nIterMin, nSecMin, CoarseVecTwospinFast, FineVecTwospinFast);
 
     printDeviationFromReference(tol, FineVecUpstream, FineVecBaseline);
     printDeviationFromReference(tol, FineVecUpstream, FineVecTwospinSlow);
@@ -281,13 +282,14 @@ int main(int argc, char** argv) {
     double flop = flopBlockNormalise * nBasis + (flopBlockInnerProduct + flopMinus + flopBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
     double byte = byteBlockNormalise * nBasis + (byteBlockInnerProduct + byteMinus + byteBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
 
-    auto nIterOne = 1;
+    uint64_t nIterOnce = 1;
+    uint64_t nSecOnce  = 100;
     auto checkOrthog = 0;
 
-    BenchmarkFunction(UpstreamAggs.Orthogonalise,    flop, byte, nIterOne, checkOrthog, gsPasses);
-    BenchmarkFunction(BaselineAggs.Orthogonalise,    flop, byte, nIterOne, checkOrthog, gsPasses);
-    BenchmarkFunction(TwoSpinAggsSlow.Orthogonalise, flop, byte, nIterOne, checkOrthog, gsPasses);
-    BenchmarkFunction(TwoSpinAggsFast.Orthogonalise, flop, byte, nIterOne, checkOrthog, gsPasses);
+    BenchmarkFunction(UpstreamAggs.Orthogonalise,    flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
+    BenchmarkFunction(BaselineAggs.Orthogonalise,    flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
+    BenchmarkFunction(TwoSpinAggsSlow.Orthogonalise, flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
+    BenchmarkFunction(TwoSpinAggsFast.Orthogonalise, flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
 
     undoChiralDoubling(UpstreamAggs.subspace); // necessary for comparison
     undoChiralDoubling(BaselineAggs.subspace); // necessary for comparison

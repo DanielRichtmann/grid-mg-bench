@@ -33,16 +33,57 @@
 NAMESPACE_BEGIN(Grid);
 NAMESPACE_BEGIN(BenchmarkHelpers);
 
-#define BenchmarkFunction(function, flop, byte, nIter, ...) \
+#define BenchmarkFunction(function, flop, byte, nIterMin, nSecMin, ...) \
   do { \
+    uint64_t nIterFinal = 1; \
+    if(nIterMin != 1) { \
+      uint64_t nIterInitial = 5; \
+      double t0 = usecond(); \
+      for(uint64_t i = 0; i < nIterInitial; ++i) { \
+        __SSC_START; \
+        function(__VA_ARGS__); \
+        __SSC_STOP; \
+      } \
+      double td  = (usecond()-t0)/1e6; \
+      nIterFinal = std::min(nIterMin, (uint64_t)(nSecMin*nIterInitial/td)+1); \
+    } \
     Profiler prof; \
     prof.Start(#function, flop, byte); \
-    for(int i = 0; i < nIter; ++i) { \
+    for(uint64_t i = 0; i < nIterFinal; ++i) { \
       __SSC_START; \
       function(__VA_ARGS__); \
       __SSC_STOP; \
     } \
-    prof.Stop(#function, nIter); \
+    prof.Stop(#function, nIterFinal); \
+    prettyPrintProfiling("Kernel", prof.GetResults(), GridTime(0), true); \
+  } while(0)
+
+#define BenchmarkFunctionMRHS(function, flop, byte, nIterMin, nSecMin, nRHS, ...) \
+  do { \
+    uint64_t nIterFinal = 1; \
+    if(nIterMin != 1) { \
+      uint64_t nIterInitial = 5; \
+      double t0 = usecond(); \
+      for(uint64_t i = 0; i < nIterInitial; ++i) { \
+        for(uint64_t rhs = 0; rhs < nRHS; ++rhs) { \
+          __SSC_START; \
+          function(__VA_ARGS__); \
+          __SSC_STOP; \
+        } \
+      } \
+      double td  = (usecond()-t0)/1e6; \
+      nIterFinal = std::min(nIterMin, (uint64_t)(nSecMin*nIterInitial/td)+1); \
+    } \
+    Profiler prof; \
+    prof.Start(#function, flop, byte); \
+    for(uint64_t i = 0; i < nIterFinal; ++i) { \
+      for(uint64_t rhs = 0; rhs < nRHS; ++rhs) { \
+        __SSC_START; \
+        function(__VA_ARGS__); \
+        __SSC_STOP; \
+      } \
+    } \
+    prof.Stop(#function, nIterFinal); \
     prettyPrintProfiling("Kernel", prof.GetResults(), GridTime(0), true); \
   } while(0)
 
