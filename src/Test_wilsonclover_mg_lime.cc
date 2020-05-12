@@ -28,7 +28,7 @@
 
 
 #include <Grid/Grid.h>
-#include <tests/multigrid/Multigrid.h>
+#include <Multigrid.h>
 
 using namespace std;
 using namespace Grid;

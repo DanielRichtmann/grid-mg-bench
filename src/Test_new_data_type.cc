@@ -27,7 +27,7 @@
 /*  END LEGAL */
 
 #include <Grid/Grid.h>
-#include <tests/multigrid/Multigrid.h>
+#include <Multigrid.h>
 
 using namespace Grid;
 using namespace Grid::Rework;
