@@ -46,17 +46,6 @@ NAMESPACE_BEGIN(BenchmarkHelpers);
     prettyPrintProfiling("Kernel", prof.GetResults(), GridTime(0), true); \
   } while(0)
 
-#define PerfProfileFunction(function, nIter, ...) \
-  do { \
-    std::string kernelName = "kernel." #function; \
-    std::string outputFile = kernelName + ".data"; \
-    System::profile(kernelName, [&]() { \
-      for(int i = 0; i < nIter; ++i) { function(__VA_ARGS__); } \
-    }); \
-    std::cout << GridLogMessage << "Generated " << outputFile << std::endl; \
-    std::cout << GridLogMessage << "Use with: perf report -i " << outputFile << std::endl; \
-  } while(0)
-
 int readFromCommandLineInt(int* argc, char*** argv, const std::string& option, int defaultValue) {
   std::string arg;
   int         ret = defaultValue;
