@@ -100,10 +100,27 @@ public:
     GridBase* fineGrid   = fineVec.Grid();
     GridBase* coarseGrid = coarseVec.Grid();
 
+    auto ndimU = projector[0].Grid()->_ndimension;
+    auto ndimF = coarseGrid->_ndimension;
+
+    assert(ndimU == 4);
+    assert(ndimF == 4 || ndimF == 5);
+    assert(fineGrid->_ndimension == ndimF);
+
+    int LLs = 1;
+    if(ndimF == 5) {
+      assert(coarseGrid->_fdimensions[0] == coarseGrid->_rdimensions[0]); // 5th dimension strictly local and not cb'ed
+      assert(fineGrid->_fdimensions[0] == fineGrid->_rdimensions[0]); // 5th dimension strictly local and not cb'ed
+      assert(coarseGrid->_rdimensions[0] == fineGrid->_rdimensions[0]); // same extent in 5th dimension
+      LLs = coarseGrid->_rdimensions[0];
+    }
+
     // checks
-    assert(lut.gridPointersMatch(coarseGrid, fineGrid));
     assert(projector.size() == Nc_c);
-    for(auto const& elem : projector) conformable(elem, fineVec);
+    if(ndimF == 4) {
+      assert(lut.gridPointersMatch(coarseGrid, fineGrid));
+      for(auto const& elem : projector) conformable(elem, fineVec);
+    }
 
     coarseVec = Zero(); // runs on CPU
 
@@ -117,14 +134,20 @@ public:
     auto  projector_v_c   = getViewContainer(projector);
     auto* projector_v_c_p = &projector_v_c[0];
 
-    accelerator_for(sc, coarseGrid->oSites(), Simd::Nsimd(), {
-      auto coarseVec_t = coarseVec_v(sc);
+    accelerator_for(scF, coarseGrid->oSites(), Simd::Nsimd(), {
+      auto scU = scF/LLs;
+      auto s5  = scF%LLs;
+
+      auto coarseVec_t = coarseVec_v(scF);
       // decltype(coalescedRead(coarseVec_v[sc])) coarseVec_t = Zero(); // could use this instead and comment line with Zero() above
-      for(size_type i = 0; i < sizes_v[sc]; ++i) {
-        auto sf = lut_v[sc][i];
-        auto fineVec_t = fineVec_v(sf);
+
+      for(size_type i = 0; i < sizes_v[scU]; ++i) {
+        auto sfU = lut_v[scU][i];
+        auto sfF = sfU*LLs + s5;
+
+        auto fineVec_t = fineVec_v(sfF);
         for(int c = 0; c < Nc_c; ++c) {
-          auto projector_t = coalescedRead(projector_v_c_p[c][sf]);
+          auto projector_t = coalescedRead(projector_v_c_p[c][sfU]);
           for(int s = 0; s < Ns_f; ++s) {
             coarseVec_t()(s / Ns_b)(c) =
               coarseVec_t()(s / Ns_b)(c) +
@@ -132,7 +155,7 @@ public:
           }
         }
       }
-      coalescedWrite(coarseVec_v[sc], coarseVec_t);
+      coalescedWrite(coarseVec_v[scF], coarseVec_t);
     });
   }
 
@@ -191,10 +214,27 @@ public:
     GridBase* fineGrid   = fineVec.Grid();
     GridBase* coarseGrid = coarseVec.Grid();
 
+    auto ndimU = projector[0].Grid()->_ndimension;
+    auto ndimF = coarseGrid->_ndimension;
+
+    assert(ndimU == 4);
+    assert(ndimF == 4 || ndimF == 5);
+    assert(fineGrid->_ndimension == ndimF);
+
+    int LLs = 1;
+    if(ndimF == 5) {
+      assert(coarseGrid->_fdimensions[0] == coarseGrid->_rdimensions[0]); // 5th dimension strictly local and not cb'ed
+      assert(fineGrid->_fdimensions[0] == fineGrid->_rdimensions[0]); // 5th dimension strictly local and not cb'ed
+      assert(coarseGrid->_rdimensions[0] == fineGrid->_rdimensions[0]); // same extent in 5th dimension
+      LLs = coarseGrid->_rdimensions[0];
+    }
+
     // checks
-    assert(lut.gridPointersMatch(coarseGrid, fineGrid));
     assert(projector.size() == Nc_c);
-    for(auto const& elem : projector) conformable(elem, fineVec);
+    if(ndimF == 4) {
+      assert(lut.gridPointersMatch(coarseGrid, fineGrid));
+      for(auto const& elem : projector) conformable(elem, fineVec);
+    }
 
     typedef CoarseningLookupTable::size_type size_type;
 
@@ -205,14 +245,18 @@ public:
     auto  projector_v_c   = getViewContainer(projector);
     auto* projector_v_c_p = &projector_v_c[0];
 
-    accelerator_for(sf, fineGrid->oSites(), Simd::Nsimd(), {
-      auto sc          = rlut_v[sf];
-      auto fineVec_t   = fineVec_v(sf);
-      auto coarseVec_t = coarseVec_v(sc);
+    accelerator_for(sfF, fineGrid->oSites(), Simd::Nsimd(), {
+      auto sfU = sfF/LLs;
+      auto s5  = sfF%LLs;
+      auto scU = rlut_v[sfU];
+      auto scF = scU*LLs + s5;
+
+      auto fineVec_t   = fineVec_v(sfF);
+      auto coarseVec_t = coarseVec_v(scF);
 
       iScalar<typename decltype(coarseVec_t)::vector_type> tmp;
       for(int i = 0; i < Nc_c; ++i) {
-        auto projector_t = coalescedRead(projector_v_c_p[i][sf]);
+        auto projector_t = coalescedRead(projector_v_c_p[i][sfU]);
         for(int s = 0; s < Ns_f; ++s) {
           tmp() = coarseVec_t()(s / Ns_b)(i);
           if(i == 0)
@@ -221,7 +265,7 @@ public:
             fineVec_t()(s) = fineVec_t()(s) + tmp * projector_t()(s);
         }
       }
-      coalescedWrite(fineVec_v[sf], fineVec_t);
+      coalescedWrite(fineVec_v[sfF], fineVec_t);
     });
   }
 
