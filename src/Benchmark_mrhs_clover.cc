@@ -27,10 +27,12 @@ Author: Daniel Richtmann <daniel.richtmann@ur.de>
 /*  END LEGAL */
 
 #include <Grid/Grid.h>
+#include <Multigrid.h>
 #include <Benchmark_helpers.h>
 
 using namespace Grid;
 using namespace Grid::BenchmarkHelpers;
+using namespace Grid::Rework;
 
 struct WorkPerSite {
   double flop;
@@ -64,9 +66,10 @@ int main(int argc, char** argv) {
   /////////////////////////////////////////////////////////////////////////////
 
   // clang-format off
-  int  nrhs           = readFromCommandLineInt(&argc, &argv, "--nrhs", 20);
-  int  niter          = readFromCommandLineInt(&argc, &argv, "--niter", 1000);
-  bool countPerformed = (GridCmdOptionExists(argv, argv + argc, "--performed")); // calculate performance with actually performed traffic rather than minimum required
+  int      nrhs           = readFromCommandLineInt(&argc, &argv, "--nrhs", 20);
+  uint64_t nIterMin       = readFromCommandLineInt(&argc, &argv, "--miniter", 1000);
+  uint64_t nSecMin        = readFromCommandLineInt(&argc, &argv, "--minsec", 5);
+  bool     countPerformed = (GridCmdOptionExists(argv, argv + argc, "--performed")); // calculate performance with actually performed traffic rather than minimum required
   // clang-format on
 
   /////////////////////////////////////////////////////////////////////////////
@@ -113,7 +116,7 @@ int main(int argc, char** argv) {
   WilsonCloverFermionR Dwc(Umu, *UGrid, *UrbGrid, mass, csw, csw, anisParams, implParams);
 
   WilsonMRHSFermionR Dw5(Umu, *FGrid, *FrbGrid, *UGrid, *UrbGrid, mass, implParams);
-  WilsonCloverMRHSFermionR Dwc5(Umu, *FGrid, *FrbGrid, *UGrid, *UrbGrid, mass, implParams);
+  WilsonCloverMRHSFermionR Dwc5(Umu, *FGrid, *FrbGrid, *UGrid, *UrbGrid, mass, csw, csw, implParams);
 
   /////////////////////////////////////////////////////////////////////////////
   //             Calculate numbers needed for performance figures            //
@@ -237,26 +240,16 @@ int main(int argc, char** argv) {
   // Wilson hopping term = "dslash" ///////////////////////////////////////////
 
   {
-    for(int i=0; i<nrhs; i++) {
-      vecs_res_4d[i] = Zero();
+    for(int rhs=0; rhs<nrhs; rhs++) {
+      vecs_res_4d[rhs] = Zero();
     }
 
-    double t0 = usecond();
-    for(int n=0; n<niter; n++) {
-      for(int i=0; i<nrhs; i++) {
-        __SSC_START;
-        Dw.Dhop(vecs_src_4d[i], vecs_res_4d[i], 0);
-        __SSC_STOP;
-      }
-    }
-    double t1 = usecond();
-    double td = (t1-t0)/1e6;
+    double flop = volumeUGrid * nrhs * wilson_dhop.flop;
+    double byte = volumeUGrid * nrhs * wilson_dhop.byte();
 
-    double flop = volumeUGrid * niter * nrhs * wilson_dhop.flop;
-    double byte = volumeUGrid * niter * nrhs * wilson_dhop.byte();
-    double intensity = wilson_dhop.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dw.Dhop: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunctionMRHS(Dw.Dhop,
+                          flop, byte, nIterMin, nSecMin, nrhs,
+                          vecs_src_4d[rhs], vecs_res_4d[rhs], 0);
   }
 
   // 5d Wilson hopping term = "dslash" ////////////////////////////////////////
@@ -264,20 +257,12 @@ int main(int argc, char** argv) {
   {
     vecs_res_5d = Zero();
 
-    double t0 = usecond();
-    for(int n=0; n<niter; n++) {
-      __SSC_START;
-      Dw5.Dhop(vecs_src_5d, vecs_res_5d, 0);
-      __SSC_STOP;
-    }
-    double t1 = usecond();
-    double td = (t1-t0)/1e6;
+    double flop = volumeFGrid * wilson_dhop.flop;
+    double byte = volumeFGrid * wilson_dhop.byte();
 
-    double flop = volumeFGrid * niter * wilson_dhop.flop;
-    double byte = volumeFGrid * niter * wilson_dhop.byte();
-    double intensity = wilson_dhop.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dw5.Dhop: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunction(Dw5.Dhop,
+                      flop, byte, nIterMin, nSecMin,
+                      vecs_src_5d, vecs_res_5d, 0);
   }
 
   // Compare 4d and 5d version of wilson Dhop /////////////////////////////////
@@ -291,22 +276,12 @@ int main(int argc, char** argv) {
       vecs_res_4d[i] = Zero();
     }
 
-    double t0 = usecond();
-    for(int n=0; n<niter; n++) {
-      for(int i=0; i<nrhs; i++) {
-        __SSC_START;
-        Dw.Mooee(vecs_src_4d[i], vecs_res_4d[i]);
-        __SSC_STOP;
-      }
-    }
-    double t1 = usecond();
-    double td = (t1-t0)/1e6;
+    double flop = volumeUGrid * nrhs * wilson_diag.flop;
+    double byte = volumeUGrid * nrhs * wilson_diag.byte();
 
-    double flop = volumeUGrid * niter * nrhs * wilson_diag.flop;
-    double byte = volumeUGrid * niter * nrhs * wilson_diag.byte();
-    double intensity = wilson_diag.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dw.Mooee: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunctionMRHS(Dw.Mooee,
+                          flop, byte, nIterMin, nSecMin, nrhs,
+                          vecs_src_4d[rhs], vecs_res_4d[rhs]);
   }
 
   // 5d Wilson diagonal term = "Mooee" ////////////////////////////////////////
@@ -314,20 +289,12 @@ int main(int argc, char** argv) {
   {
     vecs_res_5d = Zero();
 
-    double t0 = usecond();
-    for(int n=0; n<niter; n++) {
-      __SSC_START;
-      Dw5.Mooee(vecs_src_5d, vecs_res_5d);
-      __SSC_STOP;
-    }
-    double t1 = usecond();
-    double td = (t1-t0)/1e6;
+    double flop = volumeFGrid * wilson_diag.flop;
+    double byte = volumeFGrid * wilson_diag.byte();
 
-    double flop = volumeFGrid * niter * wilson_diag.flop;
-    double byte = volumeFGrid * niter * wilson_diag.byte();
-    double intensity = wilson_diag.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dw5.Mooee: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunction(Dw5.Mooee,
+                      flop, byte, nIterMin, nSecMin,
+                      vecs_src_5d, vecs_res_5d);
   }
 
   // Compare 4d and 5d version of Wilson Mooee ////////////////////////////////
@@ -341,22 +308,12 @@ int main(int argc, char** argv) {
       vecs_res_4d[i] = Zero();
     }
 
-    double t0 = usecond();
-    for(int n=0; n<niter; n++) {
-      for(int i=0; i<nrhs; i++) {
-        __SSC_START;
-        Dw.Mdir(vecs_src_4d[i], vecs_res_4d[i], 1, 0);
-        __SSC_STOP;
-      }
-    }
-    double t1 = usecond();
-    double td = (t1-t0)/1e6;
+    double flop = volumeUGrid * nrhs * wilson_dir.flop;
+    double byte = volumeUGrid * nrhs * wilson_dir.byte();
 
-    double flop = volumeUGrid * niter * nrhs * wilson_dir.flop;
-    double byte = volumeUGrid * niter * nrhs * wilson_dir.byte();
-    double intensity = wilson_dir.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dw.Mdir: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunctionMRHS(Dw.Mdir,
+                          flop, byte, nIterMin, nSecMin, nrhs,
+                          vecs_src_4d[rhs], vecs_res_4d[rhs], 1, 0);
   }
 
   // 5d Wilson directional term = "Mdir" //////////////////////////////////////
@@ -364,20 +321,12 @@ int main(int argc, char** argv) {
   {
     vecs_res_5d = Zero();
 
-    double t0 = usecond();
-    for(int n=0; n<niter; n++) {
-      __SSC_START;
-      Dw5.Mdir(vecs_src_5d, vecs_res_5d, 1, 0);
-      __SSC_STOP;
-    }
-    double t1 = usecond();
-    double td = (t1-t0)/1e6;
+    double flop = volumeFGrid * wilson_dir.flop;
+    double byte = volumeFGrid * wilson_dir.byte();
 
-    double flop = volumeFGrid * niter * wilson_dir.flop;
-    double byte = volumeFGrid * niter * wilson_dir.byte();
-    double intensity = wilson_dir.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dw5.Mdir: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunction(Dw5.Mdir,
+                      flop, byte, nIterMin, nSecMin,
+                      vecs_src_5d, vecs_res_5d, 1, 0);
   }
 
   // Compare 4d and 5d version of Wilson Mdir /////////////////////////////////
@@ -391,22 +340,12 @@ int main(int argc, char** argv) {
       vecs_res_4d[i] = Zero();
     }
 
-    double t0 = usecond();
-    for(int n=0; n<niter; n++) {
-      for(int i=0; i<nrhs; i++) {
-        __SSC_START;
-        Dw.M(vecs_src_4d[i], vecs_res_4d[i]);
-        __SSC_STOP;
-      }
-    }
-    double t1 = usecond();
-    double td = (t1-t0)/1e6;
+    double flop = volumeUGrid * nrhs * wilson_full.flop;
+    double byte = volumeUGrid * nrhs * wilson_full.byte();
 
-    double flop = volumeUGrid * niter * nrhs * wilson_full.flop;
-    double byte = volumeUGrid * niter * nrhs * wilson_full.byte();
-    double intensity = wilson_full.intensity();
-
-    std::cout << GridLogPerformance << "Performane Dw.M: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunctionMRHS(Dw.M,
+                          flop, byte, nIterMin, nSecMin, nrhs,
+                          vecs_src_4d[rhs], vecs_res_4d[rhs]);
   }
 
   // 5d Wilson full matrix ////////////////////////////////////////////////////
@@ -414,20 +353,12 @@ int main(int argc, char** argv) {
   {
     vecs_res_5d = Zero();
 
-    double t0 = usecond();
-    for(int n = 0; n < niter; n++) {
-      __SSC_START;
-      Dw5.M(vecs_src_5d, vecs_res_5d);
-      __SSC_STOP;
-    }
-    double t1 = usecond();
-    double td = (t1 - t0) / 1e6;
+    double flop = volumeFGrid * wilson_full.flop;
+    double byte = volumeFGrid * wilson_full.byte();
 
-    double flop = volumeFGrid * niter * wilson_full.flop;
-    double byte = volumeFGrid * niter * wilson_full.byte();
-    double intensity = wilson_full.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dw5.M: " << td << " s " << niter << " x " << intensity << " F/B " << flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunction(Dw5.M,
+                      flop, byte, nIterMin, nSecMin,
+                      vecs_src_5d, vecs_res_5d);
   }
 
   // Compare 4d and 5d version of Wilson M ////////////////////////////////////
@@ -441,22 +372,12 @@ int main(int argc, char** argv) {
       vecs_res_4d[i] = Zero();
     }
 
-    double t0 = usecond();
-    for(int n=0; n<niter; n++) {
-      for(int i=0; i<nrhs; i++) {
-        __SSC_START;
-        Dwc.Mooee(vecs_src_4d[i], vecs_res_4d[i]);
-        __SSC_STOP;
-      }
-    }
-    double t1 = usecond();
-    double td = (t1-t0)/1e6;
+    double flop = volumeUGrid * nrhs * clover_diag.flop;
+    double byte = volumeUGrid * nrhs * clover_diag.byte();
 
-    double flop = volumeUGrid * niter * nrhs * clover_diag.flop;
-    double byte = volumeUGrid * niter * nrhs * clover_diag.byte();
-    double intensity = clover_diag.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dwc.Mooee: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunctionMRHS(Dwc.Mooee,
+                          flop, byte, nIterMin, nSecMin, nrhs,
+                          vecs_src_4d[rhs], vecs_res_4d[rhs]);
   }
 
   // 5d Clover diagonal term = "Mooee" ////////////////////////////////////////
@@ -464,20 +385,12 @@ int main(int argc, char** argv) {
   {
     vecs_res_5d = Zero();
 
-    double t0 = usecond();
-    for(int n=0; n<niter; n++) {
-      __SSC_START;
-      Dwc5.Mooee(vecs_src_5d, vecs_res_5d);
-      __SSC_STOP;
-    }
-    double t1 = usecond();
-    double td = (t1-t0)/1e6;
+    double flop = volumeFGrid * clover_diag.flop;
+    double byte = volumeFGrid * clover_diag.byte();
 
-    double flop = volumeFGrid * niter * clover_diag.flop;
-    double byte = volumeFGrid * niter * clover_diag.byte();
-    double intensity = clover_diag.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dwc5.Mooee: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunction(Dwc5.Mooee,
+                      flop, byte, nIterMin, nSecMin,
+                      vecs_src_5d, vecs_res_5d);
   }
 
   // Compare 4d and 5d version of Clover Mooee ////////////////////////////////
@@ -491,22 +404,12 @@ int main(int argc, char** argv) {
       vecs_res_4d[i] = Zero();
     }
 
-    double t0 = usecond();
-    for(int n=0; n<niter; n++) {
-      for(int i=0; i<nrhs; i++) {
-        __SSC_START;
-        Dwc.M(vecs_src_4d[i], vecs_res_4d[i]);
-        __SSC_STOP;
-      }
-    }
-    double t1 = usecond();
-    double td = (t1-t0)/1e6;
+    double flop = volumeUGrid * nrhs * clover_full.flop;
+    double byte = volumeUGrid * nrhs * clover_full.byte();
 
-    double flop = volumeUGrid * niter * nrhs * clover_full.flop;
-    double byte = volumeUGrid * niter * nrhs * clover_full.byte();
-    double intensity = clover_full.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dwc.M: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunctionMRHS(Dwc.M,
+                          flop, byte, nIterMin, nSecMin, nrhs,
+                          vecs_src_4d[rhs], vecs_res_4d[rhs]);
   }
 
   // 5d Clover full matrix ////////////////////////////////////////////////////
@@ -514,20 +417,12 @@ int main(int argc, char** argv) {
   {
     vecs_res_5d = Zero();
 
-    double t0 = usecond();
-    for(int n = 0; n < niter; n++) {
-      __SSC_START;
-      Dwc5.M(vecs_src_5d, vecs_res_5d);
-      __SSC_STOP;
-    }
-    double t1 = usecond();
-    double td = (t1 - t0) / 1e6;
+    double flop = volumeFGrid * clover_full.flop;
+    double byte = volumeFGrid * clover_full.byte();
 
-    double flop = volumeFGrid * niter * clover_full.flop;
-    double byte = volumeFGrid * niter * clover_full.byte();
-    double intensity = clover_full.intensity();
-
-    std::cout << GridLogPerformance << "Performance Dwc5.M: " << td << " s " << niter << " x " << intensity << " F/B " << flop/td << " F/s " << byte/td << " B/s" << std::endl;
+    BenchmarkFunction(Dwc5.M,
+                      flop, byte, nIterMin, nSecMin,
+                      vecs_src_5d, vecs_res_5d);
   }
 
   // Compare 4d and 5d version of clover M ////////////////////////////////////
