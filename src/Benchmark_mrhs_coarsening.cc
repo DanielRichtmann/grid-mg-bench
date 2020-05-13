@@ -55,7 +55,7 @@ int main(int argc, char** argv) {
   const int  nB        = nBasis / 2;
   Coordinate blockSize = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({4, 4, 4, 4}));
   int        gsPasses  = readFromCommandLineInt(&argc, &argv, "--gspasses", 1);
-  int        nvec      = readFromCommandLineInt(&argc, &argv, "--nvec", 20);
+  int        nrhs      = readFromCommandLineInt(&argc, &argv, "--nrhs", 20);
   uint64_t   nIterMin  = readFromCommandLineInt(&argc, &argv, "--miniter", 1000);
   uint64_t   nSecMin   = readFromCommandLineInt(&argc, &argv, "--minsec", 5);
   // clang-format on
@@ -71,12 +71,12 @@ int main(int argc, char** argv) {
 #if 1 // 5d use case (u = gauge, f = fermion = fine, t = tmp, c = coarse)
   GridCartesian*         UGrid_f   = SpaceTimeGrid::makeFourDimGrid(GridDefaultLatt(), GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
   GridRedBlackCartesian* UrbGrid_f = SpaceTimeGrid::makeFourDimRedBlackGrid(UGrid_f);
-  GridCartesian*         FGrid_f   = SpaceTimeGrid::makeFiveDimGrid(nvec, UGrid_f);
-  GridRedBlackCartesian* FrbGrid_f = SpaceTimeGrid::makeFiveDimRedBlackGrid(nvec, UGrid_f);
+  GridCartesian*         FGrid_f   = SpaceTimeGrid::makeFiveDimGrid(nrhs, UGrid_f);
+  GridRedBlackCartesian* FrbGrid_f = SpaceTimeGrid::makeFiveDimRedBlackGrid(nrhs, UGrid_f);
   GridCartesian*         UGrid_c   = SpaceTimeGrid::makeFourDimGrid(clatt, GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
   GridRedBlackCartesian* UrbGrid_c = SpaceTimeGrid::makeFourDimRedBlackGrid(UGrid_c);
-  GridCartesian*         FGrid_c   = SpaceTimeGrid::makeFiveDimGrid(nvec, UGrid_c);
-  GridRedBlackCartesian* FrbGrid_c = SpaceTimeGrid::makeFiveDimRedBlackGrid(nvec, UGrid_c);
+  GridCartesian*         FGrid_c   = SpaceTimeGrid::makeFiveDimGrid(nrhs, UGrid_c);
+  GridRedBlackCartesian* FrbGrid_c = SpaceTimeGrid::makeFiveDimRedBlackGrid(nrhs, UGrid_c);
 #else // 4d use case (f = fine, c = coarse)
   GridCartesian*         UGrid_f   = SpaceTimeGrid::makeFourDimGrid(GridDefaultLatt(), GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
   GridRedBlackCartesian* UrbGrid_f = SpaceTimeGrid::makeFourDimRedBlackGrid(UGrid_f);
@@ -180,24 +180,24 @@ int main(int argc, char** argv) {
 
     CoarseningLookupTable lut(UGrid_c, UGrid_f);
 
-    std::vector<LatticeFermion> vecs_src_4d(nvec, UGrid_f);
-    std::vector<TwoSpinCoarseVector> vecs_res_4d(nvec, UGrid_c);
+    std::vector<LatticeFermion> vecs_src_4d(nrhs, UGrid_f);
+    std::vector<TwoSpinCoarseVector> vecs_res_4d(nrhs, UGrid_c);
 
     LatticeFermion vecs_src_5d(FGrid_f);
     TwoSpinCoarseVector vecs_res_5d(FGrid_c);
 
-    for(int i=0; i<nvec; i++) {
+    for(int i=0; i<nrhs; i++) {
       random(UPRNG_f, vecs_src_4d[i]);
       InsertSlice(vecs_src_4d[i], vecs_src_5d, i, 0);
       vecs_res_4d[i] = Zero();
       InsertSlice(vecs_res_4d[i], vecs_res_5d, i, 0);
     }
 
-    double flop = UVolume_f * (8 * USiteElems_f) * nBasis * nvec;
-    double byte = UVolume_f * (2 * 1 + 2 * USiteElems_f) * nBasis * sizeof(Complex) * nvec;
+    double flop = UVolume_f * (8 * USiteElems_f) * nBasis * nrhs;
+    double byte = UVolume_f * (2 * 1 + 2 * USiteElems_f) * nBasis * sizeof(Complex) * nrhs;
 
     BenchmarkFunctionMRHS(TwoSpinAggregation::Kernels::aggregateProjectFast,
-                          flop, byte, nIterMin, nSecMin, nvec,
+                          flop, byte, nIterMin, nSecMin, nrhs,
                           vecs_res_4d[rhs], vecs_src_4d[rhs], TwoSpinAggsFast.Subspace(), lut);
 
     BenchmarkFunction(TwoSpinAggregationMRHS::Kernels::aggregateProjectFast,
@@ -205,7 +205,7 @@ int main(int argc, char** argv) {
                       vecs_res_5d, vecs_src_5d, TwoSpinAggsFast.Subspace(), lut);
 
     TwoSpinCoarseVector tmp(UGrid_c);
-    for(int i=0; i<nvec; i++) {
+    for(int i=0; i<nrhs; i++) {
       ExtractSlice(tmp, vecs_res_5d, i, 0);
       printDeviationFromReference(tol, vecs_res_4d[i], tmp);
     }
@@ -218,24 +218,24 @@ int main(int argc, char** argv) {
 
     CoarseningLookupTable lut(UGrid_c, UGrid_f);
 
-    std::vector<TwoSpinCoarseVector> vecs_src_4d(nvec, UGrid_c);
-    std::vector<LatticeFermion> vecs_res_4d(nvec, UGrid_f);
+    std::vector<TwoSpinCoarseVector> vecs_src_4d(nrhs, UGrid_c);
+    std::vector<LatticeFermion> vecs_res_4d(nrhs, UGrid_f);
 
     TwoSpinCoarseVector vecs_src_5d(FGrid_c);
     LatticeFermion vecs_res_5d(FGrid_f);
 
-    for(int i=0; i<nvec; i++) {
+    for(int i=0; i<nrhs; i++) {
       random(UPRNG_c, vecs_src_4d[i]);
       InsertSlice(vecs_src_4d[i], vecs_src_5d, i, 0);
       vecs_res_4d[i] = Zero();
       InsertSlice(vecs_res_4d[i], vecs_res_5d, i, 0);
     }
 
-    double flop = UVolume_f * (8 * (nBasis - 1) + 6) * USiteElems_f * nvec;
-    double byte = UVolume_f * ((1 * 1 + 3 * USiteElems_f) * (nBasis - 1) + (1 * 1 + 2 * USiteElems_f) * 1) * sizeof(Complex) * nvec;
+    double flop = UVolume_f * (8 * (nBasis - 1) + 6) * USiteElems_f * nrhs;
+    double byte = UVolume_f * ((1 * 1 + 3 * USiteElems_f) * (nBasis - 1) + (1 * 1 + 2 * USiteElems_f) * 1) * sizeof(Complex) * nrhs;
 
     BenchmarkFunctionMRHS(TwoSpinAggregation::Kernels::aggregatePromoteFast,
-                          flop, byte, nIterMin, nSecMin, nvec,
+                          flop, byte, nIterMin, nSecMin, nrhs,
                           vecs_src_4d[rhs], vecs_res_4d[rhs], TwoSpinAggsFast.Subspace(), lut);
 
     BenchmarkFunction(TwoSpinAggregationMRHS::Kernels::aggregatePromoteFast,
@@ -243,7 +243,7 @@ int main(int argc, char** argv) {
                       vecs_src_5d, vecs_res_5d, TwoSpinAggsFast.Subspace(), lut);
 
     LatticeFermion tmp(UGrid_f);
-    for(int i=0; i<nvec; i++) {
+    for(int i=0; i<nrhs; i++) {
       ExtractSlice(tmp, vecs_res_5d, i, 0);
       printDeviationFromReference(tol, vecs_res_4d[i], tmp);
     }

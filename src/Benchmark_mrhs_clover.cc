@@ -48,7 +48,7 @@ inline double cMatMulFlop(int n) { return ((8 - 2 / (double)n) * n * n); }
     LatticeFermion vec_tmp(UGrid); \
     LatticeFermion diff(UGrid); \
     \
-    for(int i = 0; i < nvec; i++) { \
+    for(int i = 0; i < nrhs; i++) { \
       ExtractSlice(vec_tmp, vecs_res_5d, i, 0); \
       diff = vecs_res_4d[i] - vec_tmp; \
       std::cout << GridLogMessage << "vector " << i << ": norm2(" << #name4d << "* v) = " << norm2(vecs_res_4d[i]) \
@@ -64,7 +64,7 @@ int main(int argc, char** argv) {
   /////////////////////////////////////////////////////////////////////////////
 
   // clang-format off
-  int  nvec           = readFromCommandLineInt(&argc, &argv, "--nvec", 20);
+  int  nrhs           = readFromCommandLineInt(&argc, &argv, "--nrhs", 20);
   int  niter          = readFromCommandLineInt(&argc, &argv, "--niter", 1000);
   bool countPerformed = (GridCmdOptionExists(argv, argv + argc, "--performed")); // calculate performance with actually performed traffic rather than minimum required
   // clang-format on
@@ -76,8 +76,8 @@ int main(int argc, char** argv) {
   // clang-format off
   GridCartesian*         UGrid   = SpaceTimeGrid::makeFourDimGrid(GridDefaultLatt(), GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
   GridRedBlackCartesian* UrbGrid = SpaceTimeGrid::makeFourDimRedBlackGrid(UGrid);
-  GridCartesian*         FGrid   = SpaceTimeGrid::makeFiveDimGrid(nvec, UGrid);
-  GridRedBlackCartesian* FrbGrid = SpaceTimeGrid::makeFiveDimRedBlackGrid(nvec, UGrid);
+  GridCartesian*         FGrid   = SpaceTimeGrid::makeFiveDimGrid(nrhs, UGrid);
+  GridRedBlackCartesian* FrbGrid = SpaceTimeGrid::makeFiveDimRedBlackGrid(nrhs, UGrid);
   // clang-format on
 
   std::cout << GridLogMessage << "UGrid:" << std::endl; UGrid->show_decomposition();
@@ -222,13 +222,13 @@ int main(int argc, char** argv) {
   //                             Setup of vectors                            //
   /////////////////////////////////////////////////////////////////////////////
 
-  std::vector<LatticeFermion> vecs_src_4d(nvec, UGrid);
-  std::vector<LatticeFermion> vecs_res_4d(nvec, UGrid);
+  std::vector<LatticeFermion> vecs_src_4d(nrhs, UGrid);
+  std::vector<LatticeFermion> vecs_res_4d(nrhs, UGrid);
 
   LatticeFermion vecs_src_5d(FGrid);
   LatticeFermion vecs_res_5d(FGrid);
 
-  for(int i=0; i<nvec; i++) {
+  for(int i=0; i<nrhs; i++) {
     random(UPRNG, vecs_src_4d[i]);
     InsertSlice(vecs_src_4d[i], vecs_src_5d, i, 0);
   }
@@ -240,13 +240,13 @@ int main(int argc, char** argv) {
   // Wilson hopping term = "dslash" ///////////////////////////////////////////
 
   {
-    for(int i=0; i<nvec; i++) {
+    for(int i=0; i<nrhs; i++) {
       vecs_res_4d[i] = Zero();
     }
 
     double t0 = usecond();
     for(int n=0; n<niter; n++) {
-      for(int i=0; i<nvec; i++) {
+      for(int i=0; i<nrhs; i++) {
         __SSC_START;
         Dw.Dhop(vecs_src_4d[i], vecs_res_4d[i], 0);
         __SSC_STOP;
@@ -255,8 +255,8 @@ int main(int argc, char** argv) {
     double t1 = usecond();
     double td = (t1-t0)/1e6;
 
-    double flop = volumeUGrid * niter * nvec * wilson_dhop.flop;
-    double byte = volumeUGrid * niter * nvec * wilson_dhop.byte();
+    double flop = volumeUGrid * niter * nrhs * wilson_dhop.flop;
+    double byte = volumeUGrid * niter * nrhs * wilson_dhop.byte();
     double intensity = wilson_dhop.intensity();
 
     std::cout << GridLogPerformance << "Performance Dw.Dhop: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
@@ -290,13 +290,13 @@ int main(int argc, char** argv) {
   // Wilson diagonal term = "Mooee" ///////////////////////////////////////////
 
   {
-    for(int i=0; i<nvec; i++) {
+    for(int i=0; i<nrhs; i++) {
       vecs_res_4d[i] = Zero();
     }
 
     double t0 = usecond();
     for(int n=0; n<niter; n++) {
-      for(int i=0; i<nvec; i++) {
+      for(int i=0; i<nrhs; i++) {
         __SSC_START;
         Dw.Mooee(vecs_src_4d[i], vecs_res_4d[i]);
         __SSC_STOP;
@@ -305,8 +305,8 @@ int main(int argc, char** argv) {
     double t1 = usecond();
     double td = (t1-t0)/1e6;
 
-    double flop = volumeUGrid * niter * nvec * wilson_diag.flop;
-    double byte = volumeUGrid * niter * nvec * wilson_diag.byte();
+    double flop = volumeUGrid * niter * nrhs * wilson_diag.flop;
+    double byte = volumeUGrid * niter * nrhs * wilson_diag.byte();
     double intensity = wilson_diag.intensity();
 
     std::cout << GridLogPerformance << "Performance Dw.Mooee: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
@@ -340,13 +340,13 @@ int main(int argc, char** argv) {
   // Wilson directional term = "Mdir" /////////////////////////////////////////
 
   {
-    for(int i=0; i<nvec; i++) {
+    for(int i=0; i<nrhs; i++) {
       vecs_res_4d[i] = Zero();
     }
 
     double t0 = usecond();
     for(int n=0; n<niter; n++) {
-      for(int i=0; i<nvec; i++) {
+      for(int i=0; i<nrhs; i++) {
         __SSC_START;
         Dw.Mdir(vecs_src_4d[i], vecs_res_4d[i], 1, 0);
         __SSC_STOP;
@@ -355,8 +355,8 @@ int main(int argc, char** argv) {
     double t1 = usecond();
     double td = (t1-t0)/1e6;
 
-    double flop = volumeUGrid * niter * nvec * wilson_dir.flop;
-    double byte = volumeUGrid * niter * nvec * wilson_dir.byte();
+    double flop = volumeUGrid * niter * nrhs * wilson_dir.flop;
+    double byte = volumeUGrid * niter * nrhs * wilson_dir.byte();
     double intensity = wilson_dir.intensity();
 
     std::cout << GridLogPerformance << "Performance Dw.Mdir: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
@@ -390,13 +390,13 @@ int main(int argc, char** argv) {
   // Wilson full matrix ///////////////////////////////////////////////////////
 
   {
-    for(int i=0; i<nvec; i++) {
+    for(int i=0; i<nrhs; i++) {
       vecs_res_4d[i] = Zero();
     }
 
     double t0 = usecond();
     for(int n=0; n<niter; n++) {
-      for(int i=0; i<nvec; i++) {
+      for(int i=0; i<nrhs; i++) {
         __SSC_START;
         Dw.M(vecs_src_4d[i], vecs_res_4d[i]);
         __SSC_STOP;
@@ -405,8 +405,8 @@ int main(int argc, char** argv) {
     double t1 = usecond();
     double td = (t1-t0)/1e6;
 
-    double flop = volumeUGrid * niter * nvec * wilson_full.flop;
-    double byte = volumeUGrid * niter * nvec * wilson_full.byte();
+    double flop = volumeUGrid * niter * nrhs * wilson_full.flop;
+    double byte = volumeUGrid * niter * nrhs * wilson_full.byte();
     double intensity = wilson_full.intensity();
 
     std::cout << GridLogPerformance << "Performane Dw.M: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
@@ -440,13 +440,13 @@ int main(int argc, char** argv) {
   // Clover diagonal term = "Mooee" ///////////////////////////////////////////
 
   {
-    for(int i=0; i<nvec; i++) {
+    for(int i=0; i<nrhs; i++) {
       vecs_res_4d[i] = Zero();
     }
 
     double t0 = usecond();
     for(int n=0; n<niter; n++) {
-      for(int i=0; i<nvec; i++) {
+      for(int i=0; i<nrhs; i++) {
         __SSC_START;
         Dwc.Mooee(vecs_src_4d[i], vecs_res_4d[i]);
         __SSC_STOP;
@@ -455,8 +455,8 @@ int main(int argc, char** argv) {
     double t1 = usecond();
     double td = (t1-t0)/1e6;
 
-    double flop = volumeUGrid * niter * nvec * clover_diag.flop;
-    double byte = volumeUGrid * niter * nvec * clover_diag.byte();
+    double flop = volumeUGrid * niter * nrhs * clover_diag.flop;
+    double byte = volumeUGrid * niter * nrhs * clover_diag.byte();
     double intensity = clover_diag.intensity();
 
     std::cout << GridLogPerformance << "Performance Dwc.Mooee: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
@@ -490,13 +490,13 @@ int main(int argc, char** argv) {
   // Clover full matrix ///////////////////////////////////////////////////////
 
   {
-    for(int i=0; i<nvec; i++) {
+    for(int i=0; i<nrhs; i++) {
       vecs_res_4d[i] = Zero();
     }
 
     double t0 = usecond();
     for(int n=0; n<niter; n++) {
-      for(int i=0; i<nvec; i++) {
+      for(int i=0; i<nrhs; i++) {
         __SSC_START;
         Dwc.M(vecs_src_4d[i], vecs_res_4d[i]);
         __SSC_STOP;
@@ -505,8 +505,8 @@ int main(int argc, char** argv) {
     double t1 = usecond();
     double td = (t1-t0)/1e6;
 
-    double flop = volumeUGrid * niter * nvec * clover_full.flop;
-    double byte = volumeUGrid * niter * nvec * clover_full.byte();
+    double flop = volumeUGrid * niter * nrhs * clover_full.flop;
+    double byte = volumeUGrid * niter * nrhs * clover_full.byte();
     double intensity = clover_full.intensity();
 
     std::cout << GridLogPerformance << "Performance Dwc.M: " << td << " s " << niter << " x " << intensity << " F/B "<< flop/td << " F/s " << byte/td << " B/s" << std::endl;
