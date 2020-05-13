@@ -106,7 +106,7 @@ public:
 
   int ConstEE() { return 0; }
 
-  RealD M(FermionField const& in, FermionField& out) {
+  void M(FermionField const& in, FermionField& out) {
     conformable(Grid(), in.Grid());
     conformable(in.Grid(), out.Grid());
 
@@ -159,10 +159,9 @@ public:
       }
       coalescedWrite(out_v[ss]()(s1)(c1), res, lane);
     });
-    return norm2(out);
   }
 
-  RealD Mdag(FermionField const& in, FermionField& out) {
+  void Mdag(FermionField const& in, FermionField& out) {
     if(hermitian_) {
       // corresponds to Petrov-Galerkin coarsening
       return M(in, out);
@@ -172,7 +171,6 @@ public:
       G5C(tmp, in); // NOTE: This is actually only valid for the two spin version
       M(tmp, out);
       G5C(out, out);
-      return norm2(out);
     }
   }
 

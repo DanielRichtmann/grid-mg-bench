@@ -311,7 +311,7 @@ public:
   GridBase * Grid(void)         { return _grid; };   // this is all the linalg routines need to know
   GridBase * RedBlackGrid(void) { return _cbgrid; }
 
-  RealD M (const CoarseVector &in, CoarseVector &out){
+  void M (const CoarseVector &in, CoarseVector &out){
 
     conformable(_grid,in.Grid());
     conformable(in.Grid(),out.Grid());
@@ -342,11 +342,9 @@ public:
       }
       vstream(out_v[ss],res);
     });
-    RealD Nout= norm2(out);
-    return Nout;
   };
 
-  RealD Mdag (const CoarseVector &in, CoarseVector &out)
+  void Mdag (const CoarseVector &in, CoarseVector &out)
   {
     if(hermitian) {
       // corresponds to Petrov-Galerkin coarsening
@@ -357,7 +355,6 @@ public:
       G5C(tmp, in);
       M(tmp, out);
       G5C(out, out);
-      return norm2(out);
     }
   };
 

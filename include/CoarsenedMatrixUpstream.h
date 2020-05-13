@@ -543,7 +543,7 @@ public:
   ///////////////////////
   GridBase * Grid(void)         { return _grid; };   // this is all the linalg routines need to know
 
-  RealD M (const CoarseVector &in, CoarseVector &out){
+  void M (const CoarseVector &in, CoarseVector &out){
 
     conformable(_grid,in.Grid());
     conformable(in.Grid(),out.Grid());
@@ -620,10 +620,9 @@ public:
         std::cout << GridLogMessage << "\t  mflop/s   " << flops/usecs<<std::endl;
         std::cout << GridLogMessage << "\t  MB/s      " << bytes/usecs<<std::endl;
     */
-    return Nout;
   };
 
-  RealD Mdag (const CoarseVector &in, CoarseVector &out)
+  void Mdag (const CoarseVector &in, CoarseVector &out)
   {
     if(hermitian) {
       // corresponds to Petrov-Galerkin coarsening
@@ -634,7 +633,6 @@ public:
       G5C(tmp, in); 
       M(tmp, out);
       G5C(out, out);
-      return norm2(out);
     }
   };
   void MdirComms(const CoarseVector &in)
