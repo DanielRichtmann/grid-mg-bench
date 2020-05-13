@@ -128,10 +128,7 @@ int main(int argc, char** argv) {
   WorkPerSite wilson_diag_performed, clover_diag_performed, twisted_mass_diag_performed;
   WorkPerSite wilson_dir, clover_dir, twisted_mass_dir;
   WorkPerSite wilson_full, clover_full, twisted_mass_full;
-  WorkPerSite spinor;
-  WorkPerSite gaugemat;
-  WorkPerSite clovmat;
-  WorkPerSite clovmat_packed;
+  WorkPerSite spinor, gaugemat, clovmat, clovmat_packed;
 
   spinor.elem         = Ns * Nc;
   gaugemat.elem       = Nc * Nc;
