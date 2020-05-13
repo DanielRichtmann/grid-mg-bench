@@ -543,12 +543,11 @@ public:
   ///////////////////////
   GridBase * Grid(void)         { return _grid; };   // this is all the linalg routines need to know
 
-  void M (const CoarseVector &in, CoarseVector &out){
-
+  void M (const CoarseVector &in, CoarseVector &out)
+  {
     conformable(_grid,in.Grid());
     conformable(in.Grid(),out.Grid());
 
-    //    RealD Nin = norm2(in);
     SimpleCompressor<siteVector> compressor;
 
     double comms_usec = -usecond();
@@ -567,12 +566,10 @@ public:
     typedef decltype(coalescedRead(in_v[0])) calcVector;
     typedef decltype(coalescedRead(in_v[0](0))) calcComplex;
 
-    GridStopWatch ArithmeticTimer;
     int osites=Grid()->oSites();
     //    double flops = osites*Nsimd*nbasis*nbasis*8.0*geom.npoint;
     //    double bytes = osites*nbasis*nbasis*geom.npoint*sizeof(CComplex);
     double usecs =-usecond();
-    // assert(geom.npoint==9);
 
     // need to take references, otherwise we get illegal memory accesses
     // happens since the lambda copies the this pointer which points to host memory, see
@@ -609,12 +606,7 @@ public:
     });
     usecs +=usecond();
 
-    double nrm_usec=-usecond();
-    RealD Nout= norm2(out);
-    nrm_usec+=usecond();
-
     /*
-        std::cout << GridLogMessage << "\tNorm        " << nrm_usec << " us" <<std::endl;
         std::cout << GridLogMessage << "\tHalo        " << comms_usec << " us" <<std::endl;
         std::cout << GridLogMessage << "\tMatrix      " << usecs << " us" <<std::endl;
         std::cout << GridLogMessage << "\t  mflop/s   " << flops/usecs<<std::endl;
@@ -899,8 +891,6 @@ public:
 	    auto A_self  = A[self_stencil].View();
 
 	    accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_p[ss](j,i),oZProj_v(ss)); });
-	    //      if( disp!= 0 ) { accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_p[ss](j,i),oZProj_v(ss)); });}
-	    //	    accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_self[ss](j,i),A_self(ss)(j,i)+iZProj_v(ss)); });
 
 	    prof_.Stop("CoarsenOperator.ConstructLinksProj");
 	  }

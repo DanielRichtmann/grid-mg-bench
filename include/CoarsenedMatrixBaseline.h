@@ -316,7 +316,6 @@ public:
     conformable(_grid,in.Grid());
     conformable(in.Grid(),out.Grid());
 
-    RealD Nin = norm2(in);
     SimpleCompressor<siteVector> compressor;
     Stencil.HaloExchange(in,compressor);
     auto in_v = in.View();
