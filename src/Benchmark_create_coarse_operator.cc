@@ -220,7 +220,7 @@ int main(int argc, char** argv) {
   /////////////////////////////////////////////////////////////////////////////
 
   double nStencil   = UpstreamCMat.geom.npoint;
-  double nAccum     = nStencil;
+  double nAccum     = nStencil - 1;
   double FSiteElems = getSiteElems<LatticeFermion>();
   double CSiteElems = getSiteElems<UpstreamCoarseVector>();
 
