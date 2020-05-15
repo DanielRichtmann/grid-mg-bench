@@ -71,6 +71,20 @@ public:
     populate(coarse_, fine_);
   }
 
+  template<class ScalarField,
+           typename std::enable_if<is_lattice<ScalarField>::value, ScalarField>::type * = nullptr>
+  CoarseningLookupTable(GridBase* coarse, ScalarField const& mask, bool useNewVersion = false)
+    : coarse_(coarse)
+    , fine_(mask->Grid())
+    , isPopulated_(false)
+    , lutVec_(coarse_->oSites())
+    , lutPtr_(coarse_->oSites())
+    , sizes_(coarse_->oSites())
+    , reverseLutVec_(fine_->oSites())
+    , useNewVersion_(useNewVersion) {
+    populate(coarse_, mask);
+  }
+
   CoarseningLookupTable()
     : coarse_(nullptr)
     , fine_(nullptr)
@@ -108,44 +122,14 @@ public:
   }
 
   void populate(GridBase* coarse, GridBase* fine) {
-    if(gridPointersMatch(coarse, fine) && isPopulated()) {
-      std::cout << GridLogMessage << "No recalculation of coarsening lookup table needed. Skipping"
-                << std::endl;
-      return;
-    }
-    setGridPointers(coarse, fine);
     Lattice<iScalar<vComplex>> fullmask(fine);
     fullmask = 1.;
-    rePopulate(fullmask);
-    std::cout << GridLogMessage << "Recalculation of coarsening lookup table finished" << std::endl;
+    populate(coarse, fullmask);
   }
 
-  template<typename ScalarField>
-  void deleteUnneededFineSites(ScalarField const& mask) {
-    assert(mask.Grid() == fine_);
-
-    typename ScalarField::scalar_type zz(0);
-
-    // TODO: Is this correct if there are simd sites within different aggregates / can this situation happen at all?
-    auto mask_v = mask.View();
-    thread_for(sc, coarse_->oSites(), { // NOTE: this won't work on gpu
-      Vector<index_type> tmp;
-      for(index_type i = 0; i < lutVec_[sc].size(); ++i) {
-        int sf = lutVec_[sc][i];
-        if(Reduce(TensorRemove(mask_v(sf))) != zz) tmp.push_back(sf);
-      }
-      lutVec_[sc] = tmp;
-      sizes_[sc]  = lutVec_[sc].size();
-      lutPtr_[sc] = &lutVec_[sc][0];
-    });
-    // NOTE: Nothing to do with reverseLutVec_ here since
-    // a lut "with holes" is not a use case for the reverse table
-  }
-
-private:
   template<class ScalarField>
-  void rePopulate(ScalarField const& mask) {
-    assert(mask.Grid() == fine_);
+  void populate(GridBase* coarse, ScalarField const& mask) {
+    setGridPointers(coarse, mask.Grid());
 
     int        _ndimension = coarse_->_ndimension;
     Coordinate block_r(_ndimension);
@@ -220,6 +204,8 @@ private:
     std::cout << GridLogDebug << "Time difference " << ((useNewVersion_) ? "new" : "original") << " version = " << td << std::endl;
 
     isPopulated_ = true;
+
+    std::cout << GridLogMessage << "Recalculation of coarsening lookup table finished" << std::endl;
   }
 };
 

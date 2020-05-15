@@ -440,8 +440,6 @@ public:
       LatticeCoordinate(coor, dir);
 
       Integer block = (FineGrid->_rdimensions[dir]) / (Grid()->_rdimensions[dir]);
-      iLut[p].populate(Grid(), FineGrid);
-      oLut[p].populate(Grid(), FineGrid);
 
       if(disp == 0)       innerSites[p] = one;
       else if(disp == +1) innerSites[p] = where(mod(coor, block) != (block - 1), one, zero);
@@ -450,8 +448,8 @@ public:
 
       outerSites = one - innerSites[p];
 
-      iLut[p].deleteUnneededFineSites(innerSites[p]);
-      oLut[p].deleteUnneededFineSites(outerSites);
+      iLut[p].populate(Grid(), innerSites[p]);
+      oLut[p].populate(Grid(), outerSites);
 
       if(disp == -1) blockCB = blockCB + div(coor, block);
     }
