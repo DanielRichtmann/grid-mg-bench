@@ -260,7 +260,8 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
     std::cout << GridLogMessage << "Will be running benchmarks for configurations " << toRun << std::endl;
 
-    auto nIterOnce = 1;
+    uint64_t nIterOnce = 1;
+    uint64_t nSecOnce  = 100;
 
     UpstreamCoarseLinkField CoarseLFUpstreamTmp(CGrid);
 
@@ -269,7 +270,7 @@ int main(int argc, char** argv) {
 
     // Upstream = Reference (always run) //////////////////////////////////////
 
-    BenchmarkFunction(UpstreamCMat.CoarsenOperator, flop, byte, nIterOnce, FGrid, LinOp, UpstreamAggs);
+    BenchmarkFunction(UpstreamCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, UpstreamAggs);
     auto profResults = UpstreamCMat.GetProfile(); UpstreamCMat.ResetProfile();
     prettyPrintProfiling("Upstream", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -279,7 +280,7 @@ int main(int argc, char** argv) {
       std::cout << "Running benchmark for configuration " << elem << std::endl;
 
       if(elem == "Baseline") {
-        BenchmarkFunction(BaselineCMat.CoarsenOperator, flop, byte, nIterOnce, FGrid, LinOp, BaselineAggs);
+        BenchmarkFunction(BaselineCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, BaselineAggs);
         profResults = BaselineCMat.GetProfile(); BaselineCMat.ResetProfile();
         prettyPrintProfiling("Baseline", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -292,7 +293,7 @@ int main(int argc, char** argv) {
       // My improvements to upstream ////////////////////////////////////////////
 
       else if(elem == "Improved") {
-        BenchmarkFunction(ImprovedCMat.CoarsenOperator, flop, byte, nIterOnce, FGrid, LinOp, ImprovedAggs);
+        BenchmarkFunction(ImprovedCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, ImprovedAggs);
         profResults = ImprovedCMat.GetProfile(); ImprovedCMat.ResetProfile();
         prettyPrintProfiling("Improved", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -306,7 +307,7 @@ int main(int argc, char** argv) {
 
       else if(elem == "Speed0SlowProj") {
         TwoSpinCMat.speedLevel_ = 0; TwoSpinAggs.UseFastProjects(false);
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed0.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -320,7 +321,7 @@ int main(int argc, char** argv) {
 
       else if(elem == "Speed0FastProj") {
         TwoSpinCMat.speedLevel_ = 0; TwoSpinAggs.UseFastProjects(true);
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed0.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -334,7 +335,7 @@ int main(int argc, char** argv) {
 
       else if(elem == "Speed1SlowProj") {
         TwoSpinCMat.speedLevel_ = 1; TwoSpinAggs.UseFastProjects(false);
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed1.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -348,7 +349,7 @@ int main(int argc, char** argv) {
 
       else if(elem == "Speed1FastProj") {
         TwoSpinCMat.speedLevel_ = 1; TwoSpinAggs.UseFastProjects(true);
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed1.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -362,7 +363,7 @@ int main(int argc, char** argv) {
 
       else if(elem == "Speed2SlowProj") {
         TwoSpinCMat.speedLevel_ = 2; TwoSpinAggs.UseFastProjects(false);
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed2.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -376,7 +377,7 @@ int main(int argc, char** argv) {
 
       else if(elem == "Speed2FastProj") {
         TwoSpinCMat.speedLevel_ = 2; TwoSpinAggs.UseFastProjects(true);
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed2.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
