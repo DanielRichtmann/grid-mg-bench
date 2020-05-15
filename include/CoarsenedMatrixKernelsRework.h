@@ -148,7 +148,7 @@ public:
       int dir  = geom.directions[p];
       int disp = geom.displacements[p];
       if(disp == dispHave) {
-        auto tmp   = adj(Y[p]);
+        auto tmp   = closure(adj(Y[p]));
         auto tmp_v = tmp.View();
         accelerator_for(ss, tmp.Grid()->oSites(), Simd::Nsimd(), {
           Real factor;

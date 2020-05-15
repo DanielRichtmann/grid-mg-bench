@@ -1018,7 +1018,7 @@ public:
       int dir   = geom.directions[p];
       int disp  = geom.displacements[p];
       if(disp==-1) {
-        auto tmp   = adj(A[p]);
+        auto tmp   = closure(adj(A[p]));
         auto tmp_v = tmp.View();
         accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(), {
           Real factor;
