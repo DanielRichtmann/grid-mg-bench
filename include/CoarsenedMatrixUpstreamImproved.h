@@ -67,6 +67,43 @@ inline void blockMaskedInnerProduct(Lattice<CComplex> &CoarseInner,
   blockSum(CoarseInner,fine_inner_msk);
 }
 
+template<class vobj, class CComplex, int nbasis>
+inline void blockLutedInnerProduct(Lattice<iVector<CComplex, nbasis>>  &coarseData,
+                                   const Lattice<vobj>                 &fineData,
+                                   const std::vector<Lattice<vobj>>    &Basis,
+                                   const Rework::CoarseningLookupTable &lut)
+{
+  GridBase *fine   = fineData.Grid();
+  GridBase *coarse = coarseData.Grid();
+
+  // checks
+  assert(nbasis == Basis.size());
+  assert(lut.gridPointersMatch(coarse, fine));
+  for(auto const& elem : Basis) conformable(elem, fineData);
+
+  coarseData = Zero();
+
+  auto lut_v        = lut.View();
+  auto sizes_v      = lut.Sizes();
+  auto fineData_v   = fineData.View();
+  auto coarseData_v = coarseData.View();
+
+  auto  Basis_vc = getViewContainer(Basis);
+  auto* Basis_vp = &Basis_vc[0];
+
+  accelerator_for(sci, nbasis*coarse->oSites(), vobj::Nsimd(), {
+    auto sc=sci/nbasis;
+    auto i=sci%nbasis;
+
+    decltype(innerProduct(Basis_vp[0](0), fineData_v(0))) reduce = Zero();
+
+    for(int j=0; j<sizes_v[sc]; ++j) {
+      int sf = lut_v[sc][j];
+      reduce = reduce + innerProduct(Basis_vp[i](sf), fineData_v(sf));
+    }
+    coalescedWrite(coarseData_v[sc](i), reduce);
+  });
+}
 
 class Geometry {
 public:
@@ -778,9 +815,7 @@ public:
     FineComplexField one(FineGrid); one=scalar_type(1.0,0.0);
     FineComplexField zero(FineGrid); zero=scalar_type(0.0,0.0);
 
-    std::vector<FineComplexField> masks(geom.npoint,FineGrid);
-    FineComplexField imask(FineGrid); // contributions from within this block
-    FineComplexField omask(FineGrid); // contributions from outwith this block
+    FineComplexField omask(FineGrid);
 
     FineComplexField evenmask(FineGrid);
     FineComplexField oddmask(FineGrid); 
@@ -804,6 +839,9 @@ public:
     CoarseComplexField oZProj(Grid()); 
 
     CoarseScalar InnerProd(Grid()); 
+
+    Grid::Rework::CoarseningLookupTable ilut(Grid(), one);
+    std::vector<Grid::Rework::CoarseningLookupTable> olut(geom.npoint);
     prof_.Stop("CoarsenOperator.Misc");
 
     // Orthogonalise the subblocks over the basis
@@ -834,12 +872,14 @@ public:
       }
 	
       if ( disp==0 ) {
-	  masks[p]= Zero();
+	  omask= Zero();
       } else if ( disp==1 ) {
-	masks[p] = where(mod(coor,block)==(block-1),one,zero);
+	omask = where(mod(coor,block)==(block-1),one,zero);
       } else if ( disp==-1 ) {
-	masks[p] = where(mod(coor,block)==(Integer)0,one,zero);
+	omask = where(mod(coor,block)==(Integer)0,one,zero);
       }
+
+      olut[p].populate(Grid(), omask);
     }
     evenmask = where(mod(bcb,2)==(Integer)0,one,zero);
     oddmask  = one-evenmask;
@@ -870,30 +910,19 @@ public:
 
 	if (disp==-1) {
 
-	  ////////////////////////////////////////////////////////////////////////
-	  // Pick out contributions coming from this cell and neighbour cell
-	  ////////////////////////////////////////////////////////////////////////
-	  prof_.Start("CoarsenOperator.ModifyMasks");
-	  omask = masks[p];
-	  imask = one-omask;
-	  prof_.Stop("CoarsenOperator.ModifyMasks");
-	
-	  for(int j=0;j<nbasis;j++){
-	    
-	    prof_.Start("CoarsenOperator.ProjectToSubspaceOuter");
-	    Grid::UpstreamImproved::blockMaskedInnerProduct(oZProj,omask,Subspace.subspace[j],Mphi);
-	    prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter");
-	    
-	    prof_.Start("CoarsenOperator.ConstructLinksProj");
-	    auto iZProj_v = iZProj.View() ;
-	    auto oZProj_v = oZProj.View() ;
-	    auto A_p     =  A[p].View();
-	    auto A_self  = A[self_stencil].View();
+	  prof_.Start("CoarsenOperator.ProjectToSubspaceOuter");
+	  Grid::UpstreamImproved::blockLutedInnerProduct(oProj,Mphi,Subspace.subspace,olut[p]);
+	  prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter");
 
-	    accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_p[ss](j,i),oZProj_v(ss)); });
-
-	    prof_.Stop("CoarsenOperator.ConstructLinksProj");
-	  }
+	  prof_.Start("CoarsenOperator.ConstructLinksProj");
+	  auto oProj_v = oProj.View() ;
+	  auto A_p     = A[p].View();
+	  accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{
+	    for(int j=0;j<nbasis;j++){
+	      coalescedWrite(A_p[ss](j,i),oProj_v(ss)(j));
+	    }
+	  });
+	  prof_.Stop("CoarsenOperator.ConstructLinksProj");
 	}
       }
 
@@ -920,7 +949,7 @@ public:
 	prof_.Stop("CoarsenOperator.AccumInner");
 
 	prof_.Start("CoarsenOperator.ProjectToSubspaceInner");
-	blockProject(SelfProj,tmp,Subspace.subspace);
+	Grid::UpstreamImproved::blockLutedInnerProduct(SelfProj,tmp,Subspace.subspace,ilut);
 	prof_.Stop("CoarsenOperator.ProjectToSubspaceInner");
 
 	prof_.Start("CoarsenOperator.ConstructLinksSelf");
