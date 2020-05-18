@@ -76,12 +76,24 @@ inline void blockLutedInnerProduct(Lattice<iVector<CComplex, nbasis>>  &coarseDa
   GridBase *fine   = fineData.Grid();
   GridBase *coarse = coarseData.Grid();
 
-  // checks
-  assert(nbasis == Basis.size());
-  assert(lut.gridPointersMatch(coarse, fine));
-  for(auto const& elem : Basis) conformable(elem, fineData);
+  int ndimU = Basis[0].Grid()->_ndimension;
+  int ndimF = coarse->_ndimension;
+  int LLs   = 1;
 
-  coarseData = Zero();
+  // checks
+  assert(fine->_ndimension == ndimF);
+  assert(ndimF == ndimU || ndimF == ndimU+1);
+  assert(nbasis == Basis.size());
+  if(ndimF == ndimU) { // strictly 4d or strictly 5d
+    assert(lut.gridPointersMatch(coarse, fine));
+    for(auto const& elem : Basis) conformable(elem, fineData);
+    LLs = 1;
+  } else if(ndimF == ndimU+1) { // 4d with mrhs via 5th dimension
+    assert(coarse->_rdimensions[0] == fine->_rdimensions[0]);   // same extent in 5th dimension
+    assert(coarse->_fdimensions[0] == coarse->_rdimensions[0]); // 5th dimension strictly local and not cb'ed
+    assert(fine->_fdimensions[0]   == fine->_rdimensions[0]);   // 5th dimension strictly local and not cb'ed
+    LLs = coarse->_rdimensions[0];
+  }
 
   auto lut_v        = lut.View();
   auto sizes_v      = lut.Sizes();
@@ -91,17 +103,20 @@ inline void blockLutedInnerProduct(Lattice<iVector<CComplex, nbasis>>  &coarseDa
   auto  Basis_vc = getViewContainer(Basis);
   auto* Basis_vp = &Basis_vc[0];
 
-  accelerator_for(sci, nbasis*coarse->oSites(), vobj::Nsimd(), {
-    auto sc=sci/nbasis;
-    auto i=sci%nbasis;
+  accelerator_for(scFi, nbasis*coarse->oSites(), vobj::Nsimd(), {
+    auto i   = scFi%nbasis;
+    auto scF = scFi/nbasis;
+    auto s5  = scF%LLs;
+    auto scU = scF/LLs;
 
     decltype(innerProduct(Basis_vp[0](0), fineData_v(0))) reduce = Zero();
 
-    for(int j=0; j<sizes_v[sc]; ++j) {
-      int sf = lut_v[sc][j];
-      reduce = reduce + innerProduct(Basis_vp[i](sf), fineData_v(sf));
+    for(int j=0; j<sizes_v[scU]; ++j) {
+      int sfU = lut_v[scU][j];
+      int sfF = sfU*LLs + s5;
+      reduce = reduce + innerProduct(Basis_vp[i](sfU), fineData_v(sfF));
     }
-    coalescedWrite(coarseData_v[sc](i), reduce);
+    coalescedWrite(coarseData_v[scF](i), reduce);
   });
 }
 

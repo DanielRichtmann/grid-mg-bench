@@ -31,10 +31,12 @@ Author: Daniel Richtmann <daniel.richtmann@ur.de>
 #include <CoarsenedMatrixBaseline.h>
 #include <CoarsenedMatrixUpstream.h>
 #include <Benchmark_helpers.h>
+#include <Layout_converters.h>
 
 using namespace Grid;
 using namespace Grid::Rework;
 using namespace Grid::BenchmarkHelpers;
+using namespace Grid::LayoutConverters;
 
 // Enable control of nbasis from the compiler command line
 // NOTE to self: Copy the value of CXXFLAGS from the makefile and call make as follows:
@@ -149,12 +151,17 @@ int main(int argc, char** argv) {
   const int checkOrthog = 1;
   const int projectSpeed = 1;
 
+  UpstreamAggregation UpstreamAggs(UGrid_c, UGrid_f, cb);
   TwoSpinAggregation TwoSpinAggsFast(UGrid_c, UGrid_f, cb, projectSpeed); // make it 4d for now (for benchmarking)
 
-  for(int i = 0; i < TwoSpinAggsFast.Subspace().size(); ++i)
-    random(UPRNG_f, TwoSpinAggsFast.Subspace()[i]);
+  UpstreamAggs.CreateSubspaceRandom(UPRNG_f);
 
+  for(int i = 0; i < TwoSpinAggsFast.Subspace().size(); ++i)
+    TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
   TwoSpinAggsFast.Orthogonalise(checkOrthog, 1); // 1 gs pass
+
+  performChiralDoubling(UpstreamAggs.subspace);
+  UpstreamAggs.Orthogonalise(checkOrthog, 1); // 1 gs pass
 
   /////////////////////////////////////////////////////////////////////////////
   //             Calculate numbers needed for performance figures            //
@@ -181,33 +188,55 @@ int main(int argc, char** argv) {
     CoarseningLookupTable lut(UGrid_c, UGrid_f);
 
     std::vector<LatticeFermion> vecs_src_4d(nrhs, UGrid_f);
-    std::vector<TwoSpinCoarseVector> vecs_res_4d(nrhs, UGrid_c);
+    std::vector<UpstreamCoarseVector> vecs_res_4d_improved(nrhs, UGrid_c);
+    std::vector<TwoSpinCoarseVector> vecs_res_4d_twospin(nrhs, UGrid_c);
 
     LatticeFermion vecs_src_5d(FGrid_f);
-    TwoSpinCoarseVector vecs_res_5d(FGrid_c);
+    UpstreamCoarseVector vecs_res_5d_improved(FGrid_c);
+    TwoSpinCoarseVector vecs_res_5d_twospin(FGrid_c);
 
     for(int i=0; i<nrhs; i++) {
       random(UPRNG_f, vecs_src_4d[i]);
       InsertSlice(vecs_src_4d[i], vecs_src_5d, i, 0);
-      vecs_res_4d[i] = Zero();
-      InsertSlice(vecs_res_4d[i], vecs_res_5d, i, 0);
+      vecs_res_4d_improved[i] = Zero();
+      vecs_res_4d_twospin[i] = Zero();
+      InsertSlice(vecs_res_4d_improved[i], vecs_res_5d_improved, i, 0);
+      InsertSlice(vecs_res_4d_twospin[i], vecs_res_5d_twospin, i, 0);
     }
 
     double flop = UVolume_f * (8 * USiteElems_f) * nBasis * nrhs;
     double byte = UVolume_f * (2 * 1 + 2 * USiteElems_f) * nBasis * sizeof(Complex) * nrhs;
+    BenchmarkFunctionMRHS(Grid::UpstreamImproved::blockLutedInnerProduct,
+                          flop, byte, nIterMin, nSecMin, nrhs,
+                          vecs_res_4d_improved[rhs], vecs_src_4d[rhs], UpstreamAggs.subspace, lut);
+
+    BenchmarkFunction(Grid::UpstreamImproved::blockLutedInnerProduct,
+                      flop, byte, nIterMin, nSecMin,
+                      vecs_res_5d_improved, vecs_src_5d, UpstreamAggs.subspace, lut);
 
     BenchmarkFunctionMRHS(TwoSpinAggregation::Kernels::aggregateProjectFast,
                           flop, byte, nIterMin, nSecMin, nrhs,
-                          vecs_res_4d[rhs], vecs_src_4d[rhs], TwoSpinAggsFast.Subspace(), lut);
+                          vecs_res_4d_twospin[rhs], vecs_src_4d[rhs], TwoSpinAggsFast.Subspace(), lut);
 
     BenchmarkFunction(TwoSpinAggregationMRHS::Kernels::aggregateProjectFast,
                       flop, byte, nIterMin, nSecMin,
-                      vecs_res_5d, vecs_src_5d, TwoSpinAggsFast.Subspace(), lut);
+                      vecs_res_5d_twospin, vecs_src_5d, TwoSpinAggsFast.Subspace(), lut);
 
-    TwoSpinCoarseVector tmp(UGrid_c);
+    UpstreamCoarseVector tmp_improved(UGrid_c);
     for(int i=0; i<nrhs; i++) {
-      ExtractSlice(tmp, vecs_res_5d, i, 0);
-      printDeviationFromReference(tol, vecs_res_4d[i], tmp);
+      ExtractSlice(tmp_improved, vecs_res_5d_improved, i, 0);
+      printDeviationFromReference(tol, vecs_res_4d_improved[i], tmp_improved);
+    }
+
+    TwoSpinCoarseVector tmp_twospin(UGrid_c);
+    for(int i=0; i<nrhs; i++) {
+      ExtractSlice(tmp_twospin, vecs_res_5d_twospin, i, 0);
+      printDeviationFromReference(tol, vecs_res_4d_twospin[i], tmp_twospin);
+    }
+
+    for(int i=0; i<nrhs; i++) {
+      LayoutConverters::convertLayout(vecs_res_4d_twospin[i], tmp_improved);
+      printDeviationFromReference(tol, vecs_res_4d_improved[i], tmp_improved);
     }
   }
 
@@ -219,16 +248,16 @@ int main(int argc, char** argv) {
     CoarseningLookupTable lut(UGrid_c, UGrid_f);
 
     std::vector<TwoSpinCoarseVector> vecs_src_4d(nrhs, UGrid_c);
-    std::vector<LatticeFermion> vecs_res_4d(nrhs, UGrid_f);
+    std::vector<LatticeFermion> vecs_res_4d_twospin(nrhs, UGrid_f);
 
     TwoSpinCoarseVector vecs_src_5d(FGrid_c);
-    LatticeFermion vecs_res_5d(FGrid_f);
+    LatticeFermion vecs_res_5d_twospin(FGrid_f);
 
     for(int i=0; i<nrhs; i++) {
       random(UPRNG_c, vecs_src_4d[i]);
       InsertSlice(vecs_src_4d[i], vecs_src_5d, i, 0);
-      vecs_res_4d[i] = Zero();
-      InsertSlice(vecs_res_4d[i], vecs_res_5d, i, 0);
+      vecs_res_4d_twospin[i] = Zero();
+      InsertSlice(vecs_res_4d_twospin[i], vecs_res_5d_twospin, i, 0);
     }
 
     double flop = UVolume_f * (8 * (nBasis - 1) + 6) * USiteElems_f * nrhs;
@@ -236,16 +265,16 @@ int main(int argc, char** argv) {
 
     BenchmarkFunctionMRHS(TwoSpinAggregation::Kernels::aggregatePromoteFast,
                           flop, byte, nIterMin, nSecMin, nrhs,
-                          vecs_src_4d[rhs], vecs_res_4d[rhs], TwoSpinAggsFast.Subspace(), lut);
+                          vecs_src_4d[rhs], vecs_res_4d_twospin[rhs], TwoSpinAggsFast.Subspace(), lut);
 
     BenchmarkFunction(TwoSpinAggregationMRHS::Kernels::aggregatePromoteFast,
                       flop, byte, nIterMin, nSecMin,
-                      vecs_src_5d, vecs_res_5d, TwoSpinAggsFast.Subspace(), lut);
+                      vecs_src_5d, vecs_res_5d_twospin, TwoSpinAggsFast.Subspace(), lut);
 
     LatticeFermion tmp(UGrid_f);
     for(int i=0; i<nrhs; i++) {
-      ExtractSlice(tmp, vecs_res_5d, i, 0);
-      printDeviationFromReference(tol, vecs_res_4d[i], tmp);
+      ExtractSlice(tmp, vecs_res_5d_twospin, i, 0);
+      printDeviationFromReference(tol, vecs_res_4d_twospin[i], tmp);
     }
   }
 
