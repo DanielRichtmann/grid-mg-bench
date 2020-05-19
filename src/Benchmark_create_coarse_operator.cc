@@ -31,6 +31,7 @@
 #include <CoarsenedMatrixBaseline.h>
 #include <CoarsenedMatrixUpstream.h>
 #include <CoarsenedMatrixUpstreamImproved.h>
+#include <CoarsenedMatrixUpstreamImprovedDirsaveLutMRHS.h>
 #include <Benchmark_helpers.h>
 #include <Layout_converters.h>
 
@@ -56,6 +57,7 @@ int main(int argc, char** argv) {
   // clang-format off
   const int  nBasis              = NBASIS; static_assert((nBasis & 0x1) == 0, "");
   const int  nB                  = nBasis / 2;
+        int  nParSetupVecs       = readFromCommandLineInt(&argc, &argv, "--parsetupvecs", nB);
   Coordinate blockSize           = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({4, 4, 4, 4}));
   bool       runAll              = readFromCommandLineToggle(&argc, &argv, "--all");
   std::vector<std::string> toRun = readFromCommandLineCSL(&argc, &argv, "--torun", {"Speed2FastProj"});
@@ -71,7 +73,7 @@ int main(int argc, char** argv) {
      !GridCmdOptionExists(argv, argv + argc, "--all")) {
     std::cout << GridLogWarning << "You did not specify argument --torun. Only benchmark for Upstream CoarsenOperator will be performed" << std::endl;
     std::cout << GridLogWarning << "To run more use --torun <list> with <list> being a comma separated list from" << std::endl;
-    std::cout << GridLogWarning << "Baseline,Improved,Speed0SlowProj,Speed0FastProj,Speed1SlowProj,Speed1FastProj,Speed2SlowProj,Speed2FastProj" << std::endl;
+    std::cout << GridLogWarning << "Baseline,Improved,ImprovedMRHS,Speed0SlowProj,Speed0FastProj,Speed1SlowProj,Speed1FastProj,Speed2SlowProj,Speed2FastProj" << std::endl;
     std::cout << GridLogWarning << "You can also use --all to benchmark CoarsenOperator for all implementations." << std::endl;
   }
 
@@ -135,6 +137,13 @@ int main(int argc, char** argv) {
 
   WilsonFermionR                                      Dw(Umu, *FGrid, *FrbGrid, mass);
   MdagMLinearOperator<WilsonFermionR, LatticeFermion> LinOp(Dw);
+
+  GridCartesian*         FGrid5d   = SpaceTimeGrid::makeFiveDimGrid(nParSetupVecs, FGrid);
+  GridRedBlackCartesian* FrbGrid5d = SpaceTimeGrid::makeFiveDimRedBlackGrid(nParSetupVecs, FGrid);
+  GridCartesian*         CGrid5d   = SpaceTimeGrid::makeFiveDimGrid(nParSetupVecs, CGrid);
+  GridRedBlackCartesian* CrbGrid5d = SpaceTimeGrid::makeFiveDimRedBlackGrid(nParSetupVecs, CGrid);
+  WilsonMRHSFermionR     Dw5(Umu, *FGrid5d, *FrbGrid5d, *FGrid, *FrbGrid, mass);
+  MdagMLinearOperator<WilsonMRHSFermionR, LatticeFermion> LinOp5(Dw5);
 #endif
 
   /////////////////////////////////////////////////////////////////////////////
@@ -145,19 +154,21 @@ int main(int argc, char** argv) {
   typedef CoarseningPolicy<LatticeFermion, nB, 2> TwoSpinCoarseningPolicy;
   typedef CoarseningPolicy<LatticeFermion, nB, 4> FourSpinCoarseningPolicy;
 
-  typedef Grid::Upstream::Aggregation<vSpinColourVector, vTComplex, nBasis>         UpstreamAggregation;
-  typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis>         BaselineAggregation;
-  typedef Grid::UpstreamImproved::Aggregation<vSpinColourVector, vTComplex, nBasis> ImprovedAggregation;
-  typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>                        OneSpinAggregation;
-  typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>                        TwoSpinAggregation;
-  typedef Grid::Rework::Aggregation<FourSpinCoarseningPolicy>                       FourSpinAggregation;
+  typedef Grid::Upstream::Aggregation<vSpinColourVector, vTComplex, nBasis>             UpstreamAggregation;
+  typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis>             BaselineAggregation;
+  typedef Grid::UpstreamImproved::Aggregation<vSpinColourVector, vTComplex, nBasis>     ImprovedAggregation;
+  typedef Grid::UpstreamImprovedMRHS::Aggregation<vSpinColourVector, vTComplex, nBasis> ImprovedMRHSAggregation;
+  typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>                            OneSpinAggregation;
+  typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>                            TwoSpinAggregation;
+  typedef Grid::Rework::Aggregation<FourSpinCoarseningPolicy>                           FourSpinAggregation;
 
-  typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>         UpstreamCoarsenedMatrix;
-  typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>         BaselineCoarsenedMatrix;
-  typedef Grid::UpstreamImproved::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> ImprovedCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>                        OneSpinCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>                        TwoSpinCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<FourSpinCoarseningPolicy>                       FourSpinCoarsenedMatrix;
+  typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>             UpstreamCoarsenedMatrix;
+  typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>             BaselineCoarsenedMatrix;
+  typedef Grid::UpstreamImproved::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>     ImprovedCoarsenedMatrix;
+  typedef Grid::UpstreamImprovedMRHS::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> ImprovedMRHSCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>                            OneSpinCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>                            TwoSpinCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<FourSpinCoarseningPolicy>                           FourSpinCoarsenedMatrix;
 
   typedef UpstreamCoarsenedMatrix::CoarseVector UpstreamCoarseVector;
   typedef BaselineCoarsenedMatrix::CoarseVector BaselineCoarseVector;
@@ -221,6 +232,7 @@ int main(int argc, char** argv) {
   std::vector<std::string> allRuns = {
     "Baseline",
     "Improved",
+    "ImprovedMRHS",
     "Speed0SlowProj",
     "Speed0FastProj",
     "Speed1SlowProj",
@@ -291,6 +303,23 @@ int main(int argc, char** argv) {
         std::cout << GridLogMessage << "Deviations of Improved from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
           printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedCMat.A[p]);
+        }
+      }
+
+      // My improvements to upstream with MRHS //////////////////////////////////
+
+      else if(elem == "ImprovedMRHS") {
+        ImprovedMRHSAggregation ImprovedMRHSAggs(CGrid, FGrid, cb);
+        ImprovedMRHSCoarsenedMatrix ImprovedMRHSCMat(*CGrid, *CGrid5d, isHermitian);
+        for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedMRHSAggs.subspace[i] = UpstreamAggs.subspace[i];
+
+        BenchmarkFunction(ImprovedMRHSCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid5d, LinOp5, ImprovedMRHSAggs);
+        profResults = ImprovedMRHSCMat.GetProfile(); ImprovedMRHSCMat.ResetProfile();
+        prettyPrintProfiling("ImprovedMRHS", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+        std::cout << GridLogMessage << "Deviations of ImprovedMRHS from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
+          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedMRHSCMat.A[p]);
         }
       }
 
