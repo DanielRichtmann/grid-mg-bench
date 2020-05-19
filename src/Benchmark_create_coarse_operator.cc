@@ -174,46 +174,29 @@ int main(int argc, char** argv) {
   typedef FourSpinCoarsenedMatrix::LinkField    FourSpinCoarseLinkField;
 
   /////////////////////////////////////////////////////////////////////////////
+  //                       Set values for some toggles                       //
+  /////////////////////////////////////////////////////////////////////////////
+
+  const int cb          = 0; // cb to use in aggregation
+  const int checkOrthog = 1; // whether to check orthog in setup of aggregation
+  const int gsPasses    = 1; // number of GS in setup of aggregation
+  const int isHermitian = 0; // whether we do Petrov-Galerkin (hermitian) or Galerkin (G5-hermitian) coarsening
+
+  /////////////////////////////////////////////////////////////////////////////
   //                           Setup of Aggregation                          //
   /////////////////////////////////////////////////////////////////////////////
 
-  const int cb = 0;
-
   UpstreamAggregation UpstreamAggs(CGrid, FGrid, cb);
-  BaselineAggregation BaselineAggs(CGrid, FGrid, cb);
-  ImprovedAggregation ImprovedAggs(CGrid, FGrid, cb);
-  TwoSpinAggregation  TwoSpinAggs(CGrid, FGrid, cb, 1); // 1 = use fast projects
-
-  const int checkOrthog = 1;
-  const int gsPasses = 1;
-
-  // setup vectors once and distribute them to save time
-  // (we check agreement of different impls in Benchmark_aggregation)
 
   UpstreamAggs.CreateSubspaceRandom(FPRNG);
-
-  for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i)
-    TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
-  TwoSpinAggs.Orthogonalise(checkOrthog, gsPasses);
-
   performChiralDoubling(UpstreamAggs.subspace);
   UpstreamAggs.Orthogonalise(checkOrthog, gsPasses);
-
-  for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) {
-    BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
-    ImprovedAggs.subspace[i] = UpstreamAggs.subspace[i];
-  }
 
   /////////////////////////////////////////////////////////////////////////////
   //                         Setup of CoarsenedMatrix                        //
   /////////////////////////////////////////////////////////////////////////////
 
-  const int hermitian = 0;
-
-  UpstreamCoarsenedMatrix UpstreamCMat(*CGrid, hermitian);
-  BaselineCoarsenedMatrix BaselineCMat(*CGrid, *CrbGrid, hermitian);
-  ImprovedCoarsenedMatrix ImprovedCMat(*CGrid, hermitian);
-  TwoSpinCoarsenedMatrix  TwoSpinCMat(*CGrid, *CrbGrid, 2, hermitian); // speedLevel = 2 (changed below)
+  UpstreamCoarsenedMatrix UpstreamCMat(*CGrid, isHermitian);
 
   /////////////////////////////////////////////////////////////////////////////
   //            Calculate performance figures for instrumentation            //
@@ -280,6 +263,10 @@ int main(int argc, char** argv) {
       std::cout << "Running benchmark for configuration " << elem << std::endl;
 
       if(elem == "Baseline") {
+        BaselineAggregation BaselineAggs(CGrid, FGrid, cb);
+        BaselineCoarsenedMatrix BaselineCMat(*CGrid, *CrbGrid, isHermitian);
+        for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
+
         BenchmarkFunction(BaselineCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, BaselineAggs);
         profResults = BaselineCMat.GetProfile(); BaselineCMat.ResetProfile();
         prettyPrintProfiling("Baseline", profResults, profResults["CoarsenOperator.Total"].t, false);
@@ -293,6 +280,10 @@ int main(int argc, char** argv) {
       // My improvements to upstream ////////////////////////////////////////////
 
       else if(elem == "Improved") {
+        ImprovedAggregation ImprovedAggs(CGrid, FGrid, cb);
+        ImprovedCoarsenedMatrix ImprovedCMat(*CGrid, isHermitian);
+        for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedAggs.subspace[i] = UpstreamAggs.subspace[i];
+
         BenchmarkFunction(ImprovedCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, ImprovedAggs);
         profResults = ImprovedCMat.GetProfile(); ImprovedCMat.ResetProfile();
         prettyPrintProfiling("Improved", profResults, profResults["CoarsenOperator.Total"].t, false);
@@ -306,7 +297,12 @@ int main(int argc, char** argv) {
       // Twospin layout speedlevel 0, slow projects /////////////////////////////
 
       else if(elem == "Speed0SlowProj") {
-        TwoSpinCMat.speedLevel_ = 0; TwoSpinAggs.UseFastProjects(false);
+        TwoSpinAggregation TwoSpinAggs(CGrid, FGrid, cb, 0); // 0 = don't use fast projects
+        TwoSpinCoarsenedMatrix TwoSpinCMat(*CGrid, *CrbGrid, 0, isHermitian); // speedLevel = 0
+        undoChiralDoubling(UpstreamAggs.subspace);
+        for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
+        performChiralDoubling(UpstreamAggs.subspace);
+
         BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed0.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
@@ -320,7 +316,12 @@ int main(int argc, char** argv) {
       // Twospin layout speedlevel 0, fast projects /////////////////////////////
 
       else if(elem == "Speed0FastProj") {
-        TwoSpinCMat.speedLevel_ = 0; TwoSpinAggs.UseFastProjects(true);
+        TwoSpinAggregation TwoSpinAggs(CGrid, FGrid, cb, 1); // 1 = use fast projects
+        TwoSpinCoarsenedMatrix TwoSpinCMat(*CGrid, *CrbGrid, 0, isHermitian); // speedLevel = 0
+        undoChiralDoubling(UpstreamAggs.subspace);
+        for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
+        performChiralDoubling(UpstreamAggs.subspace);
+
         BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed0.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
@@ -334,7 +335,12 @@ int main(int argc, char** argv) {
       // Twospin layout speedlevel 1, slow projects /////////////////////////////
 
       else if(elem == "Speed1SlowProj") {
-        TwoSpinCMat.speedLevel_ = 1; TwoSpinAggs.UseFastProjects(false);
+        TwoSpinAggregation TwoSpinAggs(CGrid, FGrid, cb, 0); // 0 = don't use fast projects
+        TwoSpinCoarsenedMatrix TwoSpinCMat(*CGrid, *CrbGrid, 1, isHermitian); // speedLevel = 1
+        undoChiralDoubling(UpstreamAggs.subspace);
+        for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
+        performChiralDoubling(UpstreamAggs.subspace);
+
         BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed1.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
@@ -348,7 +354,12 @@ int main(int argc, char** argv) {
       // Twospin layout speedlevel 1, fast projects /////////////////////////////
 
       else if(elem == "Speed1FastProj") {
-        TwoSpinCMat.speedLevel_ = 1; TwoSpinAggs.UseFastProjects(true);
+        TwoSpinAggregation TwoSpinAggs(CGrid, FGrid, cb, 1); // 1 = use fast projects
+        TwoSpinCoarsenedMatrix TwoSpinCMat(*CGrid, *CrbGrid, 1, isHermitian); // speedLevel = 1
+        undoChiralDoubling(UpstreamAggs.subspace);
+        for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
+        performChiralDoubling(UpstreamAggs.subspace);
+
         BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed1.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
@@ -362,7 +373,12 @@ int main(int argc, char** argv) {
       // Twospin layout speedlevel 2, slow projects /////////////////////////////
 
       else if(elem == "Speed2SlowProj") {
-        TwoSpinCMat.speedLevel_ = 2; TwoSpinAggs.UseFastProjects(false);
+        TwoSpinAggregation TwoSpinAggs(CGrid, FGrid, cb, 0); // 0 = don't use fast projects
+        TwoSpinCoarsenedMatrix TwoSpinCMat(*CGrid, *CrbGrid, 2, isHermitian); // speedLevel = 2
+        undoChiralDoubling(UpstreamAggs.subspace);
+        for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
+        performChiralDoubling(UpstreamAggs.subspace);
+
         BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed2.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
@@ -376,7 +392,12 @@ int main(int argc, char** argv) {
       // Twospin layout speedlevel 2, fast projects /////////////////////////////
 
       else if(elem == "Speed2FastProj") {
-        TwoSpinCMat.speedLevel_ = 2; TwoSpinAggs.UseFastProjects(true);
+        TwoSpinAggregation TwoSpinAggs(CGrid, FGrid, cb, 1); // 1 = use fast projects
+        TwoSpinCoarsenedMatrix TwoSpinCMat(*CGrid, *CrbGrid, 2, isHermitian); // speedLevel = 2
+        undoChiralDoubling(UpstreamAggs.subspace);
+        for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
+        performChiralDoubling(UpstreamAggs.subspace);
+
         BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed2.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
