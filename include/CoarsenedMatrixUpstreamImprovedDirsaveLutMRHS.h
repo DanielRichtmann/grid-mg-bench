@@ -889,8 +889,10 @@ public:
     typedef Lattice<typename Fobj::tensor_reduced> FineComplexField;
     typedef typename Fobj::scalar_type scalar_type;
 
-    FineComplexField one(FineGridU); one=scalar_type(1.0,0.0);
-    FineComplexField zero(FineGridU); zero=scalar_type(0.0,0.0);
+    FineComplexField one4(FineGridU); one4=scalar_type(1.0,0.0);
+    FineComplexField zero4(FineGridU); zero4=scalar_type(0.0,0.0);
+    FineComplexField one5(FineGridF); one5=scalar_type(1.0,0.0);
+    FineComplexField zero5(FineGridF); zero5=scalar_type(0.0,0.0);
 
     FineComplexField omask(FineGridU);
 
@@ -905,7 +907,8 @@ public:
     FineField    Mphio(FineGridF);
     std::vector<FineField>     Mphi_p(geom5d.npoint,FineGridF);
 
-    Lattice<iScalar<vInteger> > coor (FineGridU);
+    Lattice<iScalar<vInteger> > coor4 (FineGridU);
+    Lattice<iScalar<vInteger> > coor5 (FineGridF);
     Lattice<iScalar<vInteger> > bcoor(FineGridF);
     Lattice<iScalar<vInteger> > bcb  (FineGridF); bcb = Zero();
 
@@ -917,8 +920,8 @@ public:
 
     CoarseScalar InnerProd(CoarseGridU);
 
-    Grid::Rework::CoarseningLookupTable ilut(CoarseGridU, one);
-    std::vector<Grid::Rework::CoarseningLookupTable> olut(geom5d.npoint);
+    Grid::Rework::CoarseningLookupTable ilut(CoarseGridU, one4);
+    std::vector<Grid::Rework::CoarseningLookupTable> olut(geom.npoint);
     prof_.Stop("CoarsenOperator.Misc");
 
     // Orthogonalise the subblocks over the basis
@@ -928,39 +931,43 @@ public:
     // Compute the matrix elements of linop between this orthonormal
     // set of vectors.
     int self_stencil=-1;
-    for(int p=0;p<geom.npoint;p++)
+    for(int p=0;p<geom5d.npoint;p++)
     { 
-      int dir   = geom.directions[p];
-      int disp  = geom.displacements[p];
-      std::cout << "p = " << p << " dir = " << dir << " disp = " << disp << std::endl;
+      int dir4   = geom.directions[p];
+      int disp4  = geom.displacements[p];
+      int dir5   = geom5d.directions[p];
+      int disp5  = geom5d.displacements[p];
+      std::cout << "p = " << p << " dir4 = " << dir4 << " disp4 = " << disp4
+                << " dir5 = " << dir5 << " disp5 = " << disp5 << std::endl;
       A[p]=Zero();
-      if( geom5d.displacements[p]==0){
+      if( geom.displacements[p]==0){
 	self_stencil=p;
       }
 
-      Integer block=(FineGridU->_rdimensions[dir])/(CoarseGridU->_rdimensions[dir]);
+      Integer block=(FineGridU->_rdimensions[dir4])/(CoarseGridU->_rdimensions[dir4]);
 
-      LatticeCoordinate(coor,dir);
+      LatticeCoordinate(coor4,dir4);
+      LatticeCoordinate(coor5,dir5);
 
       ///////////////////////////////////////////////////////
       // Work out even and odd block checkerboarding for fast diagonal term
       ///////////////////////////////////////////////////////
-      // if ( disp==1 ) {
-      //   bcb   = bcb + div(coor,block);
-      // }
+      if ( disp4==1 ) {
+        bcb   = bcb + div(coor5,block);
+      }
 	
-      if ( disp==0 ) {
+      if ( disp4==0 ) {
 	  omask= Zero();
-      } else if ( disp==1 ) {
-	omask = where(mod(coor,block)==(block-1),one,zero);
-      } else if ( disp==-1 ) {
-	omask = where(mod(coor,block)==(Integer)0,one,zero);
+      } else if ( disp4==1 ) {
+	omask = where(mod(coor4,block)==(block-1),one4,zero4);
+      } else if ( disp4==-1 ) {
+	omask = where(mod(coor4,block)==(Integer)0,one4,zero4);
       }
 
       olut[p].populate(CoarseGridU, omask);
     }
-    // evenmask = where(mod(bcb,2)==(Integer)0,one,zero);
-    // oddmask  = one-evenmask;
+    evenmask = where(mod(bcb,2)==(Integer)0,one5,zero5);
+    oddmask  = one5-evenmask;
 
     assert(self_stencil!=-1);
     prof_.Stop("CoarsenOperator.SetupMasks");
@@ -1017,7 +1024,6 @@ public:
       ///////////////////////////////////////////
       // Faster alternate self coupling.. use hermiticity to save 2x
       ///////////////////////////////////////////
-      #if 0
       {
 	prof_.Start("CoarsenOperator.ApplyOpSecond");
 	mult(tmp,phi,evenmask);  linop.Op(tmp,Mphie); // TODO: Need the masks to act only in 4d but live in 5d
@@ -1055,7 +1061,6 @@ public:
 	prof_.Stop("CoarsenOperator.ConstructLinksSelf");
 
       }
-      #endif
     }
     if(hermitian) {
       std::cout << GridLogMessage << " ForceHermitian, new code "<<std::endl;
