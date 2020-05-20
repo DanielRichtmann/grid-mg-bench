@@ -4,7 +4,7 @@
 
     Source file: ./tests/multigrid/CoarseningLookupTableRework.h
 
-    Copyright (C) 2015 - 2019
+    Copyright (C) 2015 - 2020
 
 Author: Daniel Richtmann <daniel.richtmann@ur.de>
 
@@ -52,36 +52,33 @@ private:
   Vector<index_type*>             lutPtr_;
   Vector<size_type>               sizes_;
   Vector<index_type>              reverseLutVec_;
-  bool                            useNewVersion_;
 
   /////////////////////////////////////////////
   // Member Functions
   /////////////////////////////////////////////
 
 public:
-  CoarseningLookupTable(GridBase* coarse, GridBase* fine, bool useNewVersion = false)
+  CoarseningLookupTable(GridBase* coarse, GridBase* fine)
     : coarse_(coarse)
     , fine_(fine)
     , isPopulated_(false)
     , lutVec_(coarse_->oSites())
     , lutPtr_(coarse_->oSites())
     , sizes_(coarse_->oSites())
-    , reverseLutVec_(fine_->oSites())
-    , useNewVersion_(useNewVersion) {
+    , reverseLutVec_(fine_->oSites()) {
     populate(coarse_, fine_);
   }
 
   template<class ScalarField,
            typename std::enable_if<is_lattice<ScalarField>::value, ScalarField>::type * = nullptr>
-  CoarseningLookupTable(GridBase* coarse, ScalarField const& mask, bool useNewVersion = false)
+  CoarseningLookupTable(GridBase* coarse, ScalarField const& mask)
     : coarse_(coarse)
-    , fine_(mask->Grid())
+    , fine_(mask.Grid())
     , isPopulated_(false)
     , lutVec_(coarse_->oSites())
     , lutPtr_(coarse_->oSites())
     , sizes_(coarse_->oSites())
-    , reverseLutVec_(fine_->oSites())
-    , useNewVersion_(useNewVersion) {
+    , reverseLutVec_(fine_->oSites()){
     populate(coarse_, mask);
   }
 
@@ -93,16 +90,9 @@ public:
     , lutPtr_()
     , sizes_()
     , reverseLutVec_()
-    , useNewVersion_(false)
   {}
 
   // clang-format off
-  ~CoarseningLookupTable()                                       = default;
-  CoarseningLookupTable(const CoarseningLookupTable&)            = delete;
-  CoarseningLookupTable& operator=(CoarseningLookupTable const&) = delete;
-  CoarseningLookupTable(CoarseningLookupTable&&)                 = delete;
-  CoarseningLookupTable& operator=(CoarseningLookupTable&&)      = delete;
-
   accelerator_inline std::vector<Vector<index_type>> const& operator()()  const { return lutVec_; }     // CPU access (TODO: remove?)
   accelerator_inline index_type const* const*               View()        const { return &lutPtr_[0]; } // GPU access
   accelerator_inline size_type  const*                      Sizes()       const { return &sizes_[0]; }  // also needed for GPU access
@@ -129,7 +119,9 @@ public:
 
   template<class ScalarField>
   void populate(GridBase* coarse, ScalarField const& mask) {
-    setGridPointers(coarse, mask.Grid());
+    if(!gridPointersMatch(coarse, mask.Grid())) {
+      setGridPointers(coarse, mask.Grid());
+    }
 
     int        _ndimension = coarse_->_ndimension;
     Coordinate block_r(_ndimension);
@@ -140,6 +132,7 @@ public:
       assert(block_r[d] * coarse_->_rdimensions[d] == fine_->_rdimensions[d]);
       block_v *= block_r[d];
     }
+    assert(block_v == fine_->oSites()/coarse_->oSites());
 
     lutVec_.resize(coarse_->oSites());
     lutPtr_.resize(coarse_->oSites());
@@ -154,54 +147,31 @@ public:
 
     typename ScalarField::scalar_type zz = {0., 0.,};
 
-    double td = -usecond();
-    if(useNewVersion_) {
-      auto& rdim_c = coarse_->_rdimensions; // Didn't work for me without these
-      auto& rdim_f = fine_->_rdimensions;
-      auto  mask_v = mask.View();
-      thread_for(sc, coarse_->oSites(), {
-        Coordinate coor_c(_ndimension);
-        Lexicographic::CoorFromIndex(coor_c, sc, rdim_c);
-
-        int sf_tmp, count = 0;
-        for(int sb = 0; sb < block_v; sb++) {
-          Coordinate coor_b(_ndimension);
-          Coordinate coor_f(_ndimension);
-
-          Lexicographic::CoorFromIndex(coor_b, sb, block_r);
-          for(int d = 0; d < _ndimension; ++d) coor_f[d] = coor_c[d] * block_r[d] + coor_b[d];
-          Lexicographic::IndexFromCoor(coor_f, sf_tmp, rdim_f);
-
-          index_type sf = (index_type)sf_tmp;
-
-          if(Reduce(TensorRemove(coalescedRead(mask_v[sf]))) != zz) {
-            lutPtr_[sc][count] = sf;
-            sizes_[sc]++;
-            count++;
-          }
-          reverseLutVec_[sf] = sc;
-        }
-        lutVec_[sc].resize(sizes_[sc]);
-      });
-    } else {
+    auto mask_v = mask.View();
+    thread_for(sc, coarse_->oSites(), {
       Coordinate coor_c(_ndimension);
-      Coordinate coor_f(_ndimension);
-      int        sc{};
-      auto  mask_v = mask.View();
-      for(index_type sf = 0; sf < fine_->oSites(); ++sf) {
-        Lexicographic::CoorFromIndex(coor_f, sf, fine_->_rdimensions);
-        for(int d = 0; d < _ndimension; ++d) coor_c[d] = coor_f[d] / block_r[d];
-        Lexicographic::IndexFromCoor(coor_c, sc, coarse_->_rdimensions);
-        if(Reduce(TensorRemove(coalescedRead(mask_v[sf]))) != zz) {
-          lutVec_[sc].push_back(sf);
-          sizes_[sc]++;
-        }
-        reverseLutVec_[sf] = sc;
-      }
-    }
-    td += usecond();
+      Lexicographic::CoorFromIndex(coor_c, sc, coarse_->_rdimensions);
 
-    std::cout << GridLogDebug << "Time difference " << ((useNewVersion_) ? "new" : "original") << " version = " << td << std::endl;
+      int sf_tmp, count = 0;
+      for(int sb = 0; sb < block_v; ++sb) {
+        Coordinate coor_b(_ndimension);
+        Coordinate coor_f(_ndimension);
+
+        Lexicographic::CoorFromIndex(coor_b, sb, block_r);
+        for(int d = 0; d < _ndimension; ++d) coor_f[d] = coor_c[d] * block_r[d] + coor_b[d];
+        Lexicographic::IndexFromCoor(coor_f, sf_tmp, fine_->_rdimensions);
+
+        index_type sf = (index_type)sf_tmp;
+
+        if(Reduce(TensorRemove(coalescedRead(mask_v[sf]))) != zz) {
+          lutPtr_[sc][count] = sf;
+          sizes_[sc]++;
+          count++;
+        }
+        reverseLutVec_[sf] = sc; // reverse table will never have holes
+      }
+      lutVec_[sc].resize(sizes_[sc]);
+    });
 
     isPopulated_ = true;
 
