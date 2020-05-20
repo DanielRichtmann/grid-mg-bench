@@ -335,7 +335,7 @@ int main(int argc, char** argv) {
 
       else if(elem == "ImprovedDirsaveLutMRHS") {
         ImprovedDirsaveLutMRHSAggregation ImprovedDirsaveLutMRHSAggs(CGrid, FGrid, cb);
-        ImprovedDirsaveLutMRHSCoarsenedMatrix ImprovedDirsaveLutMRHSCMat(*CGrid, *CGrid5d, isHermitian);
+        ImprovedDirsaveLutMRHSCoarsenedMatrix ImprovedDirsaveLutMRHSCMat(*FGrid5d, *FGrid, *CGrid5d, *CGrid, isHermitian);
         for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedDirsaveLutMRHSAggs.subspace[i] = UpstreamAggs.subspace[i];
 
         BenchmarkFunction(ImprovedDirsaveLutMRHSCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid5d, LinOp5, ImprovedDirsaveLutMRHSAggs);
