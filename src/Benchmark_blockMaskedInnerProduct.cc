@@ -30,6 +30,8 @@ Author: Daniel Richtmann <daniel.richtmann@ur.de>
 #include <Multigrid.h>
 #include <CoarsenedMatrixBaseline.h>
 #include <CoarsenedMatrixUpstream.h>
+#include <CoarsenedMatrixUpstreamImprovedDirsave.h>
+#include <CoarsenedMatrixUpstreamImprovedDirsaveLut.h>
 #include <Benchmark_helpers.h>
 
 using namespace Grid;
@@ -248,7 +250,7 @@ int main(int argc, char** argv) {
                             flop, byte, nIterMin, nSecMin, nBasis,
                             vec_res_upstream[rhs], masks[myPoint], UpstreamAggs.subspace[rhs], vec_src);
 
-      BenchmarkFunctionMRHS(Grid::UpstreamImproved::blockLutedInnerProduct,
+      BenchmarkFunctionMRHS(Grid::UpstreamImprovedDirsaveLut::blockLutedInnerProduct,
                             flop, byte, nIterMin, nSecMin, 1,
                             vec_res_improved[rhs], vec_src, UpstreamAggs.subspace, lut[myPoint]);
 

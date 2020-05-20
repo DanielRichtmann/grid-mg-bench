@@ -85,8 +85,8 @@ public:
   typedef MGBasisVectors<FineVector>                                                                                       BasisVectors;
   typedef MultiGridPreconditioner<CoarseSiteVector, CComplex, nBasis, nCoarseSpins, nCoarserLevels - 1, CoarseDiracMatrix> NextPreconditionerLevel;
 #else
-  typedef Grid::Aggregation<Fobj, CComplex, nBasis>                                                                                 Aggregates;
-  typedef Grid::CoarsenedMatrix<Fobj, CComplex, nBasis>                                                                             CoarseDiracMatrix;
+  typedef Grid::UpstreamImprovedDirsaveLut::Aggregation<Fobj, CComplex, nBasis>                                                     Aggregates;
+  typedef Grid::UpstreamImprovedDirsaveLut::CoarsenedMatrix<Fobj, CComplex, nBasis>                                                 CoarseDiracMatrix;
   typedef typename Aggregates::CoarseVector                                                                                         CoarseVector;
   typedef typename Aggregates::siteVector                                                                                           CoarseSiteVector;
   typedef Matrix                                                                                                                    FineDiracMatrix;

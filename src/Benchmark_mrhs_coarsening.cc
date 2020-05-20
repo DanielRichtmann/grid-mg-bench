@@ -30,6 +30,8 @@ Author: Daniel Richtmann <daniel.richtmann@ur.de>
 #include <Multigrid.h>
 #include <CoarsenedMatrixBaseline.h>
 #include <CoarsenedMatrixUpstream.h>
+#include <CoarsenedMatrixUpstreamImprovedDirsave.h>
+#include <CoarsenedMatrixUpstreamImprovedDirsaveLut.h>
 #include <Benchmark_helpers.h>
 #include <Layout_converters.h>
 
@@ -206,11 +208,11 @@ int main(int argc, char** argv) {
 
     double flop = UVolume_f * (8 * USiteElems_f) * nBasis * nrhs;
     double byte = UVolume_f * (2 * 1 + 2 * USiteElems_f) * nBasis * sizeof(Complex) * nrhs;
-    BenchmarkFunctionMRHS(Grid::UpstreamImproved::blockLutedInnerProduct,
+    BenchmarkFunctionMRHS(Grid::UpstreamImprovedDirsaveLut::blockLutedInnerProduct,
                           flop, byte, nIterMin, nSecMin, nrhs,
                           vecs_res_4d_improved[rhs], vecs_src_4d[rhs], UpstreamAggs.subspace, lut);
 
-    BenchmarkFunction(Grid::UpstreamImproved::blockLutedInnerProduct,
+    BenchmarkFunction(Grid::UpstreamImprovedDirsaveLut::blockLutedInnerProduct,
                       flop, byte, nIterMin, nSecMin,
                       vecs_res_5d_improved, vecs_src_5d, UpstreamAggs.subspace, lut);
 

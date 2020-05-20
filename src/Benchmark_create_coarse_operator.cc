@@ -31,7 +31,7 @@
 #include <CoarsenedMatrixBaseline.h>
 #include <CoarsenedMatrixUpstream.h>
 #include <CoarsenedMatrixUpstreamImprovedDirsave.h>
-#include <CoarsenedMatrixUpstreamImproved.h>
+#include <CoarsenedMatrixUpstreamImprovedDirsaveLut.h>
 #include <CoarsenedMatrixUpstreamImprovedDirsaveLutMRHS.h>
 #include <Benchmark_helpers.h>
 #include <Layout_converters.h>
@@ -74,7 +74,7 @@ int main(int argc, char** argv) {
      !GridCmdOptionExists(argv, argv + argc, "--all")) {
     std::cout << GridLogWarning << "You did not specify argument --torun. Only benchmark for Upstream CoarsenOperator will be performed" << std::endl;
     std::cout << GridLogWarning << "To run more use --torun <list> with <list> being a comma separated list from" << std::endl;
-    std::cout << GridLogWarning << "Baseline,Improved,ImprovedMRHS,Speed0SlowProj,Speed0FastProj,Speed1SlowProj,Speed1FastProj,Speed2SlowProj,Speed2FastProj" << std::endl;
+    std::cout << GridLogWarning << "Baseline,ImprovedDirsave,ImprovedDirsaveLut,ImprovedDirsaveLutMRHS,Speed0SlowProj,Speed0FastProj,Speed1SlowProj,Speed1FastProj,Speed2SlowProj,Speed2FastProj" << std::endl;
     std::cout << GridLogWarning << "You can also use --all to benchmark CoarsenOperator for all implementations." << std::endl;
   }
 
@@ -155,35 +155,41 @@ int main(int argc, char** argv) {
   typedef CoarseningPolicy<LatticeFermion, nB, 2> TwoSpinCoarseningPolicy;
   typedef CoarseningPolicy<LatticeFermion, nB, 4> FourSpinCoarseningPolicy;
 
-  typedef Grid::Upstream::Aggregation<vSpinColourVector, vTComplex, nBasis>             UpstreamAggregation;
-  typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis>             BaselineAggregation;
-  typedef Grid::UpstreamImproved::Aggregation<vSpinColourVector, vTComplex, nBasis>     ImprovedAggregation;
-  typedef Grid::UpstreamImprovedMRHS::Aggregation<vSpinColourVector, vTComplex, nBasis> ImprovedMRHSAggregation;
-  typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>                            OneSpinAggregation;
-  typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>                            TwoSpinAggregation;
-  typedef Grid::Rework::Aggregation<FourSpinCoarseningPolicy>                           FourSpinAggregation;
+  typedef Grid::Upstream::Aggregation<vSpinColourVector, vTComplex, nBasis>                       UpstreamAggregation;
+  typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis>                       BaselineAggregation;
+  typedef Grid::UpstreamImprovedDirsave::Aggregation<vSpinColourVector, vTComplex, nBasis>        ImprovedDirsaveAggregation;
+  typedef Grid::UpstreamImprovedDirsaveLut::Aggregation<vSpinColourVector, vTComplex, nBasis>     ImprovedDirsaveLutAggregation;
+  typedef Grid::UpstreamImprovedDirsaveLutMRHS::Aggregation<vSpinColourVector, vTComplex, nBasis> ImprovedDirsaveLutMRHSAggregation;
+  typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>                                      OneSpinAggregation;
+  typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>                                      TwoSpinAggregation;
+  typedef Grid::Rework::Aggregation<FourSpinCoarseningPolicy>                                     FourSpinAggregation;
 
-  typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>             UpstreamCoarsenedMatrix;
-  typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>             BaselineCoarsenedMatrix;
-  typedef Grid::UpstreamImproved::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>     ImprovedCoarsenedMatrix;
-  typedef Grid::UpstreamImprovedMRHS::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> ImprovedMRHSCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>                            OneSpinCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>                            TwoSpinCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<FourSpinCoarseningPolicy>                           FourSpinCoarsenedMatrix;
+  typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>                       UpstreamCoarsenedMatrix;
+  typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>                       BaselineCoarsenedMatrix;
+  typedef Grid::UpstreamImprovedDirsave::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>        ImprovedDirsaveCoarsenedMatrix;
+  typedef Grid::UpstreamImprovedDirsaveLut::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>     ImprovedDirsaveLutCoarsenedMatrix;
+  typedef Grid::UpstreamImprovedDirsaveLutMRHS::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> ImprovedDirsaveLutMRHSCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>                                      OneSpinCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>                                      TwoSpinCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<FourSpinCoarseningPolicy>                                     FourSpinCoarsenedMatrix;
 
-  typedef UpstreamCoarsenedMatrix::CoarseVector UpstreamCoarseVector;
-  typedef BaselineCoarsenedMatrix::CoarseVector BaselineCoarseVector;
-  typedef ImprovedCoarsenedMatrix::CoarseVector ImprovedCoarseVector;
-  typedef OneSpinCoarsenedMatrix::FermionField  OneSpinCoarseVector;
-  typedef TwoSpinCoarsenedMatrix::FermionField  TwoSpinCoarseVector;
-  typedef FourSpinCoarsenedMatrix::FermionField FourSpinCoarseVector;
+  typedef UpstreamCoarsenedMatrix::CoarseVector               UpstreamCoarseVector;
+  typedef BaselineCoarsenedMatrix::CoarseVector               BaselineCoarseVector;
+  typedef ImprovedDirsaveCoarsenedMatrix::CoarseVector        ImprovedDirsaveCoarseVector;
+  typedef ImprovedDirsaveLutCoarsenedMatrix::CoarseVector     ImprovedDirsaveLutCoarseVector;
+  typedef ImprovedDirsaveLutMRHSCoarsenedMatrix::CoarseVector ImprovedDirsaveLutMRHSCoarseVector;
+  typedef OneSpinCoarsenedMatrix::FermionField                OneSpinCoarseVector;
+  typedef TwoSpinCoarsenedMatrix::FermionField                TwoSpinCoarseVector;
+  typedef FourSpinCoarsenedMatrix::FermionField               FourSpinCoarseVector;
 
-  typedef UpstreamCoarsenedMatrix::CoarseMatrix UpstreamCoarseLinkField;
-  typedef BaselineCoarsenedMatrix::CoarseMatrix BaselineCoarseLinkField;
-  typedef ImprovedCoarsenedMatrix::CoarseMatrix ImprovedCoarseLinkField;
-  typedef OneSpinCoarsenedMatrix::LinkField     OneSpinCoarseLinkField;
-  typedef TwoSpinCoarsenedMatrix::LinkField     TwoSpinCoarseLinkField;
-  typedef FourSpinCoarsenedMatrix::LinkField    FourSpinCoarseLinkField;
+  typedef UpstreamCoarsenedMatrix::CoarseMatrix               UpstreamCoarseLinkField;
+  typedef BaselineCoarsenedMatrix::CoarseMatrix               BaselineCoarseLinkField;
+  typedef ImprovedDirsaveCoarsenedMatrix::CoarseMatrix        ImprovedDirsaveCoarseLinkField;
+  typedef ImprovedDirsaveLutCoarsenedMatrix::CoarseMatrix     ImprovedDirsaveLutCoarseLinkField;
+  typedef ImprovedDirsaveLutMRHSCoarsenedMatrix::CoarseMatrix ImprovedDirsaveLutMRHSCoarseLinkField;
+  typedef OneSpinCoarsenedMatrix::LinkField                   OneSpinCoarseLinkField;
+  typedef TwoSpinCoarsenedMatrix::LinkField                   TwoSpinCoarseLinkField;
+  typedef FourSpinCoarsenedMatrix::LinkField                  FourSpinCoarseLinkField;
 
   /////////////////////////////////////////////////////////////////////////////
   //                       Set values for some toggles                       //
@@ -232,8 +238,9 @@ int main(int argc, char** argv) {
   // clang-format off
   std::vector<std::string> allRuns = {
     "Baseline",
-    "Improved",
-    "ImprovedMRHS",
+    "ImprovedDirsave",
+    "ImprovedDirsaveLut",
+    "ImprovedDirsaveLutMRHS",
     "Speed0SlowProj",
     "Speed0FastProj",
     "Speed1SlowProj",
@@ -290,37 +297,54 @@ int main(int argc, char** argv) {
         }
       }
 
-      // My improvements to upstream ////////////////////////////////////////////
+      // Improvements to upstream: direction saving /////////////////////////////
 
-      else if(elem == "Improved") {
-        ImprovedAggregation ImprovedAggs(CGrid, FGrid, cb);
-        ImprovedCoarsenedMatrix ImprovedCMat(*CGrid, isHermitian);
-        for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedAggs.subspace[i] = UpstreamAggs.subspace[i];
+      else if(elem == "ImprovedDirsave") {
+        ImprovedDirsaveAggregation ImprovedDirsaveAggs(CGrid, FGrid, cb);
+        ImprovedDirsaveCoarsenedMatrix ImprovedDirsaveCMat(*CGrid, isHermitian);
+        for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedDirsaveAggs.subspace[i] = UpstreamAggs.subspace[i];
 
-        BenchmarkFunction(ImprovedCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, ImprovedAggs);
-        profResults = ImprovedCMat.GetProfile(); ImprovedCMat.ResetProfile();
-        prettyPrintProfiling("Improved", profResults, profResults["CoarsenOperator.Total"].t, false);
+        BenchmarkFunction(ImprovedDirsaveCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, ImprovedDirsaveAggs);
+        profResults = ImprovedDirsaveCMat.GetProfile(); ImprovedDirsaveCMat.ResetProfile();
+        prettyPrintProfiling("ImprovedDirsave", profResults, profResults["CoarsenOperator.Total"].t, false);
 
-        std::cout << GridLogMessage << "Deviations of Improved from Upstream" << std::endl;
+        std::cout << GridLogMessage << "Deviations of ImprovedDirsave from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedCMat.A[p]);
+          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedDirsaveCMat.A[p]);
+        }
+      }
+
+      // Improvements to upstream: direction saving + lut ///////////////////////
+
+      else if(elem == "ImprovedDirsaveLut") {
+        ImprovedDirsaveLutAggregation ImprovedDirsaveLutAggs(CGrid, FGrid, cb);
+        ImprovedDirsaveLutCoarsenedMatrix ImprovedDirsaveLutCMat(*CGrid, isHermitian);
+        for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedDirsaveLutAggs.subspace[i] = UpstreamAggs.subspace[i];
+
+        BenchmarkFunction(ImprovedDirsaveLutCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, ImprovedDirsaveLutAggs);
+        profResults = ImprovedDirsaveLutCMat.GetProfile(); ImprovedDirsaveLutCMat.ResetProfile();
+        prettyPrintProfiling("ImprovedDirsaveLut", profResults, profResults["CoarsenOperator.Total"].t, false);
+
+        std::cout << GridLogMessage << "Deviations of ImprovedDirsaveLut from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
+          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedDirsaveLutCMat.A[p]);
         }
       }
 
       // My improvements to upstream with MRHS //////////////////////////////////
 
-      else if(elem == "ImprovedMRHS") {
-        ImprovedMRHSAggregation ImprovedMRHSAggs(CGrid, FGrid, cb);
-        ImprovedMRHSCoarsenedMatrix ImprovedMRHSCMat(*CGrid, *CGrid5d, isHermitian);
-        for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedMRHSAggs.subspace[i] = UpstreamAggs.subspace[i];
+      else if(elem == "ImprovedDirsaveLutMRHS") {
+        ImprovedDirsaveLutMRHSAggregation ImprovedDirsaveLutMRHSAggs(CGrid, FGrid, cb);
+        ImprovedDirsaveLutMRHSCoarsenedMatrix ImprovedDirsaveLutMRHSCMat(*CGrid, *CGrid5d, isHermitian);
+        for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedDirsaveLutMRHSAggs.subspace[i] = UpstreamAggs.subspace[i];
 
-        BenchmarkFunction(ImprovedMRHSCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid5d, LinOp5, ImprovedMRHSAggs);
-        profResults = ImprovedMRHSCMat.GetProfile(); ImprovedMRHSCMat.ResetProfile();
-        prettyPrintProfiling("ImprovedMRHS", profResults, profResults["CoarsenOperator.Total"].t, false);
+        BenchmarkFunction(ImprovedDirsaveLutMRHSCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid5d, LinOp5, ImprovedDirsaveLutMRHSAggs);
+        profResults = ImprovedDirsaveLutMRHSCMat.GetProfile(); ImprovedDirsaveLutMRHSCMat.ResetProfile();
+        prettyPrintProfiling("ImprovedDirsaveLutMRHS", profResults, profResults["CoarsenOperator.Total"].t, false);
 
-        std::cout << GridLogMessage << "Deviations of ImprovedMRHS from Upstream" << std::endl;
+        std::cout << GridLogMessage << "Deviations of ImprovedDirsaveLutMRHS from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedMRHSCMat.A[p]);
+          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedDirsaveLutMRHSCMat.A[p]);
         }
       }
 

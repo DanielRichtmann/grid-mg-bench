@@ -31,7 +31,7 @@
 #include <CoarsenedMatrixBaseline.h>
 #include <CoarsenedMatrixUpstream.h>
 #include <CoarsenedMatrixUpstreamImprovedDirsave.h>
-#include <CoarsenedMatrixUpstreamImproved.h>
+#include <CoarsenedMatrixUpstreamImprovedDirsaveLut.h>
 #include <Benchmark_helpers.h>
 #include <Layout_converters.h>
 
@@ -88,19 +88,23 @@ int main(int argc, char** argv) {
   typedef CoarseningPolicy<LatticeFermion, nB, 2> TwoSpinCoarseningPolicy;
   typedef CoarseningPolicy<LatticeFermion, nB, 4> FourSpinCoarseningPolicy;
 
-  typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>         UpstreamCoarsenedMatrix;
-  typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>         BaselineCoarsenedMatrix;
-  typedef Grid::UpstreamImproved::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> ImprovedCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>                        OneSpinCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>                        TwoSpinCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<FourSpinCoarseningPolicy>                       FourSpinCoarsenedMatrix;
+  typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>                       UpstreamCoarsenedMatrix;
+  typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>                       BaselineCoarsenedMatrix;
+  typedef Grid::UpstreamImprovedDirsave::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>        ImprovedDirsaveCoarsenedMatrix;
+  typedef Grid::UpstreamImprovedDirsaveLut::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>     ImprovedDirsaveLutCoarsenedMatrix;
+  typedef Grid::UpstreamImprovedDirsaveLutMRHS::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> ImprovedDirsaveLutMRHSCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>                                      OneSpinCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>                                      TwoSpinCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<FourSpinCoarseningPolicy>                                     FourSpinCoarsenedMatrix;
 
-  typedef UpstreamCoarsenedMatrix::CoarseVector UpstreamCoarseVector;
-  typedef BaselineCoarsenedMatrix::CoarseVector BaselineCoarseVector;
-  typedef ImprovedCoarsenedMatrix::CoarseVector ImprovedCoarseVector;
-  typedef OneSpinCoarsenedMatrix::FermionField  OneSpinCoarseVector;
-  typedef TwoSpinCoarsenedMatrix::FermionField  TwoSpinCoarseVector;
-  typedef FourSpinCoarsenedMatrix::FermionField FourSpinCoarseVector;
+  typedef UpstreamCoarsenedMatrix::CoarseVector               UpstreamCoarseVector;
+  typedef BaselineCoarsenedMatrix::CoarseVector               BaselineCoarseVector;
+  typedef ImprovedDirsaveCoarsenedMatrix::CoarseVector        ImprovedDirsaveCoarseVector;
+  typedef ImprovedDirsaveLutCoarsenedMatrix::CoarseVector     ImprovedDirsaveLutCoarseVector;
+  typedef ImprovedDirsaveLutMRHSCoarsenedMatrix::CoarseVector ImprovedDirsaveLutMRHSCoarseVector;
+  typedef OneSpinCoarsenedMatrix::FermionField                OneSpinCoarseVector;
+  typedef TwoSpinCoarsenedMatrix::FermionField                TwoSpinCoarseVector;
+  typedef FourSpinCoarsenedMatrix::FermionField               FourSpinCoarseVector;
 
   /////////////////////////////////////////////////////////////////////////////
   //                         Setup of CoarsenedMatrix                        //
@@ -110,14 +114,16 @@ int main(int argc, char** argv) {
 
   UpstreamCoarsenedMatrix UpstreamCMat(*CGrid, hermitian);
   // BaselineCoarsenedMatrix BaselineCMat(*CGrid, *CrbGrid, hermitian);
-  // ImprovedCoarsenedMatrix ImprovedCMat(*CGrid, hermitian);
+  // ImprovedDirsaveCoarsenedMatrix ImprovedDirsaveCMat(*CGrid, hermitian);
+  // ImprovedDirsaveLutCoarsenedMatrix ImprovedDirsaveLutCMat(*CGrid, hermitian);
   TwoSpinCoarsenedMatrix  TwoSpinCMat(*CGrid, *CrbGrid, 2, hermitian); // speedLevel = 2 (affects only CoarsenOperator)
 
   for(int p = 0; p < TwoSpinCMat.geom_.npoint; ++p) {
     random(CPRNG, TwoSpinCMat.Y_[p]);
     convertLayout(TwoSpinCMat.Y_[p], UpstreamCMat.A[p]);
     // BaselineCMat.A[p] = UpstreamCMat.A[p];
-    // ImprovedCMat.A[p] = UpstreamCMat.A[p];
+    // ImprovedDirsaveCMat.A[p] = UpstreamCMat.A[p];
+    // ImprovedDirsaveLutCMat.A[p] = UpstreamCMat.A[p];
   }
 
   /////////////////////////////////////////////////////////////////////////////
