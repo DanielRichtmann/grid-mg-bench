@@ -39,12 +39,12 @@ Author: paboyle <paboyle@ph.ed.ac.uk>
     See the full license in the file "LICENSE" in the top level distribution directory
 *************************************************************************************/
 /*  END LEGAL */
-#ifndef  GRID_ALGORITHM_COARSENED_MATRIX_UPSTREAM_IMPROVED_H
-#define  GRID_ALGORITHM_COARSENED_MATRIX_UPSTREAM_IMPROVED_H
+#ifndef  GRID_ALGORITHM_COARSENED_MATRIX_UPSTREAM_IMPROVED_DIRSAVE_LUT_H
+#define  GRID_ALGORITHM_COARSENED_MATRIX_UPSTREAM_IMPROVED_DIRSAVE_LUT_H
 
 
 NAMESPACE_BEGIN(Grid);
-NAMESPACE_BEGIN(UpstreamImproved);
+NAMESPACE_BEGIN(UpstreamImprovedDirsaveLut);
 
 template<class vobj,class CComplex>
 inline void blockMaskedInnerProduct(Lattice<CComplex> &CoarseInner,
@@ -926,7 +926,7 @@ public:
 	if (disp==-1) {
 
 	  prof_.Start("CoarsenOperator.ProjectToSubspaceOuter");
-	  Grid::UpstreamImproved::blockLutedInnerProduct(oProj,Mphi,Subspace.subspace,olut[p]);
+	  Grid::UpstreamImprovedDirsaveLut::blockLutedInnerProduct(oProj,Mphi,Subspace.subspace,olut[p]);
 	  prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter");
 
 	  prof_.Start("CoarsenOperator.ConstructLinksProj");
@@ -964,7 +964,7 @@ public:
 	prof_.Stop("CoarsenOperator.AccumInner");
 
 	prof_.Start("CoarsenOperator.ProjectToSubspaceInner");
-	Grid::UpstreamImproved::blockLutedInnerProduct(SelfProj,tmp,Subspace.subspace,ilut);
+	Grid::UpstreamImprovedDirsaveLut::blockLutedInnerProduct(SelfProj,tmp,Subspace.subspace,ilut);
 	prof_.Stop("CoarsenOperator.ProjectToSubspaceInner");
 
 	prof_.Start("CoarsenOperator.ConstructLinksSelf");
@@ -1092,6 +1092,6 @@ public:
 
 };
 
-NAMESPACE_END(UpstreamImproved);
+NAMESPACE_END(UpstreamImprovedDirsaveLut);
 NAMESPACE_END(Grid);
 #endif
