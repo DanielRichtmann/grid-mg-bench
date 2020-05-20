@@ -30,6 +30,7 @@
 #include <Multigrid.h>
 #include <CoarsenedMatrixBaseline.h>
 #include <CoarsenedMatrixUpstream.h>
+#include <CoarsenedMatrixUpstreamImprovedDirsave.h>
 #include <CoarsenedMatrixUpstreamImproved.h>
 #include <CoarsenedMatrixUpstreamImprovedDirsaveLutMRHS.h>
 #include <Benchmark_helpers.h>
