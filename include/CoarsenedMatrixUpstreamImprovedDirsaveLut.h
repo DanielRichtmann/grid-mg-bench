@@ -171,6 +171,72 @@ inline void blockLutedAxpy(const Lattice<iVector<CComplex, nbasis>> &coarseData,
   });
 }
 
+template<class CComplex, class vobj>
+void blockLutedOrthonormalise(Lattice<CComplex>                    &ip,
+                              std::vector<Lattice<vobj>>           &Basis,
+                              const Rework::CoarseningLookupTable  &lut) {
+  GridBase *fine   = Basis[0].Grid();
+  GridBase *coarse = ip.Grid();
+
+  int nbasis = Basis.size();
+
+  subdivides(coarse, fine);
+  for(int i=0; i<nbasis; ++i) conformable(Basis[i].Grid(), fine);
+
+  typedef decltype(innerProduct(vobj(), vobj()))   dotp;
+  typedef Rework::CoarseningLookupTable::size_type size_type;
+
+  Lattice<dotp> alpha(coarse);
+  Lattice<dotp> norm(coarse);
+
+  auto  alpha_v  = alpha.View();
+  auto  norm_v   = norm.View();
+  auto  lut_v    = lut.View();
+  auto  sizes_v  = lut.Sizes();
+  auto  Basis_vc = getViewContainer(Basis);
+  auto* Basis_vp = &Basis_vc[0];
+
+  // Kernel fusion
+  accelerator_for(sc, coarse->oSites(), vobj::Nsimd(), {
+    auto alpha_t = alpha_v(sc);
+    auto norm_t  = norm_v(sc);
+
+    for(int v=0; v<nbasis; ++v) {
+      for(int u=0; u<v; ++u) {
+        alpha_t = Zero();
+
+        // alpha = <basis[u], basis[v]>
+        for(size_type i=0; i<sizes_v[sc]; ++i) {
+          auto sf   = lut_v[sc][i];
+          alpha_t = alpha_t + innerProduct(Basis_vp[u](sf), Basis_vp[v](sf));
+        }
+
+        // basis[v] -= alpha * basis[u]
+        for(size_type i=0; i<sizes_v[sc]; ++i) {
+          auto sf = lut_v[sc][i];
+          coalescedWrite(Basis_vp[v][sf], Basis_vp[v](sf) - alpha_t * Basis_vp[u](sf));
+        }
+      }
+
+      norm_t = Zero();
+
+      // norm = <basis[v], basis[v]>
+      for(size_type i=0; i<sizes_v[sc]; ++i) {
+        auto sf = lut_v[sc][i];
+        norm_t  = norm_t + innerProduct(Basis_vp[v](sf), Basis_vp[v](sf));
+      }
+
+      norm_t = pow(norm_t, -0.5);
+
+      // basis[v] = 1/norm * basis[v]
+      for(size_type i=0; i<sizes_v[sc]; ++i) {
+        auto sf = lut_v[sc][i];
+        coalescedWrite(Basis_vp[v][sf], norm_t * Basis_vp[v](sf));
+      }
+    }
+  });
+}
+
 class Geometry {
 public:
   int npoint;
@@ -255,7 +321,7 @@ public:
     CoarseScalar InnerProd(CoarseGrid); 
     for(int n = 0; n < passes; ++n) {
       std::cout << GridLogMessage <<" Block Gramm-Schmidt pass "<<n+1<<std::endl;
-      blockOrthogonalise(InnerProd,subspace);
+      blockLutedOrthonormalise(InnerProd,subspace,lut);
     }
     if(checkOrthogonality) CheckOrthogonal();
   }
