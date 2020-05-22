@@ -30,6 +30,7 @@ Author: Daniel Richtmann <daniel.richtmann@ur.de>
 #include <Multigrid.h>
 #include <CoarsenedMatrixBaseline.h>
 #include <CoarsenedMatrixUpstream.h>
+#include <CoarsenedMatrixUpstreamImprovedDirsaveLut.h>
 #include <Benchmark_helpers.h>
 #include <Layout_converters.h>
 
@@ -112,29 +113,33 @@ int main(int argc, char** argv) {
   typedef CoarseningPolicy<LatticeFermion, nB, 2> TwoSpinCoarseningPolicy;
   typedef CoarseningPolicy<LatticeFermion, nB, 4> FourSpinCoarseningPolicy;
 
-  typedef Grid::Upstream::Aggregation<vSpinColourVector, vTComplex, nBasis> UpstreamAggregation;
-  typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis> BaselineAggregation;
-  typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>                OneSpinAggregation;
-  typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>                TwoSpinAggregation;
-  typedef Grid::Rework::Aggregation<FourSpinCoarseningPolicy>               FourSpinAggregation;
+  typedef Grid::Upstream::Aggregation<vSpinColourVector, vTComplex, nBasis>                   UpstreamAggregation;
+  typedef Grid::Baseline::Aggregation<vSpinColourVector, vTComplex, nBasis>                   BaselineAggregation;
+  typedef Grid::UpstreamImprovedDirsaveLut::Aggregation<vSpinColourVector, vTComplex, nBasis> ImprovedDirsaveLutAggregation;
+  typedef Grid::Rework::Aggregation<OneSpinCoarseningPolicy>                                  OneSpinAggregation;
+  typedef Grid::Rework::Aggregation<TwoSpinCoarseningPolicy>                                  TwoSpinAggregation;
+  typedef Grid::Rework::Aggregation<FourSpinCoarseningPolicy>                                 FourSpinAggregation;
 
-  typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> UpstreamCoarsenedMatrix;
-  typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> BaselineCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>                OneSpinCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>                TwoSpinCoarsenedMatrix;
-  typedef Grid::Rework::CoarsenedMatrix<FourSpinCoarseningPolicy>               FourSpinCoarsenedMatrix;
+  typedef Grid::Upstream::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>                   UpstreamCoarsenedMatrix;
+  typedef Grid::Baseline::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis>                   BaselineCoarsenedMatrix;
+  typedef Grid::UpstreamImprovedDirsaveLut::CoarsenedMatrix<vSpinColourVector, vTComplex, nBasis> ImprovedDirsaveLutCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<OneSpinCoarseningPolicy>                                  OneSpinCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<TwoSpinCoarseningPolicy>                                  TwoSpinCoarsenedMatrix;
+  typedef Grid::Rework::CoarsenedMatrix<FourSpinCoarseningPolicy>                                 FourSpinCoarsenedMatrix;
 
-  typedef UpstreamCoarsenedMatrix::CoarseVector UpstreamCoarseVector;
-  typedef BaselineCoarsenedMatrix::CoarseVector BaselineCoarseVector;
-  typedef OneSpinCoarsenedMatrix::FermionField  OneSpinCoarseVector;
-  typedef TwoSpinCoarsenedMatrix::FermionField  TwoSpinCoarseVector;
-  typedef FourSpinCoarsenedMatrix::FermionField FourSpinCoarseVector;
+  typedef UpstreamCoarsenedMatrix::CoarseVector           UpstreamCoarseVector;
+  typedef BaselineCoarsenedMatrix::CoarseVector           BaselineCoarseVector;
+  typedef ImprovedDirsaveLutCoarsenedMatrix::CoarseVector ImprovedDirsaveLutCoarseVector;
+  typedef OneSpinCoarsenedMatrix::FermionField            OneSpinCoarseVector;
+  typedef TwoSpinCoarsenedMatrix::FermionField            TwoSpinCoarseVector;
+  typedef FourSpinCoarsenedMatrix::FermionField           FourSpinCoarseVector;
 
-  typedef UpstreamCoarsenedMatrix::CoarseMatrix UpstreamCoarseLinkField;
-  typedef BaselineCoarsenedMatrix::CoarseMatrix BaselineCoarseLinkField;
-  typedef OneSpinCoarsenedMatrix::LinkField     OneSpinCoarseLinkField;
-  typedef TwoSpinCoarsenedMatrix::LinkField     TwoSpinCoarseLinkField;
-  typedef FourSpinCoarsenedMatrix::LinkField    FourSpinCoarseLinkField;
+  typedef UpstreamCoarsenedMatrix::CoarseMatrix           UpstreamCoarseLinkField;
+  typedef BaselineCoarsenedMatrix::CoarseMatrix           BaselineCoarseLinkField;
+  typedef ImprovedDirsaveLutCoarsenedMatrix::CoarseMatrix ImprovedDirsaveLutCoarsenedMatrixCoarseLinkField;
+  typedef OneSpinCoarsenedMatrix::LinkField               OneSpinCoarseLinkField;
+  typedef TwoSpinCoarsenedMatrix::LinkField               TwoSpinCoarseLinkField;
+  typedef FourSpinCoarsenedMatrix::LinkField              FourSpinCoarseLinkField;
 
   /////////////////////////////////////////////////////////////////////////////
   //                           Setup of Aggregation                          //
@@ -142,10 +147,11 @@ int main(int argc, char** argv) {
 
   const int cb = 0;
 
-  UpstreamAggregation UpstreamAggs(CGrid, FGrid, cb);
-  BaselineAggregation BaselineAggs(CGrid, FGrid, cb);
-  TwoSpinAggregation  TwoSpinAggsSlow(CGrid, FGrid, cb, 0);
-  TwoSpinAggregation  TwoSpinAggsFast(CGrid, FGrid, cb, 1);
+  UpstreamAggregation           UpstreamAggs(CGrid, FGrid, cb);
+  BaselineAggregation           BaselineAggs(CGrid, FGrid, cb);
+  ImprovedDirsaveLutAggregation ImprovedDirsaveLutAggs(CGrid, FGrid, cb);
+  TwoSpinAggregation            TwoSpinAggsSlow(CGrid, FGrid, cb, 0);
+  TwoSpinAggregation            TwoSpinAggsFast(CGrid, FGrid, cb, 1);
 
   const int checkOrthog = 1;
 
@@ -159,8 +165,10 @@ int main(int argc, char** argv) {
   performChiralDoubling(UpstreamAggs.subspace);
   UpstreamAggs.Orthogonalise(checkOrthog, 1); // 1 gs pass
 
-  for(int i = 0; i < UpstreamAggs.subspace.size(); ++i)
+  for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) {
     BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
+    ImprovedDirsaveLutAggs.subspace[i] = UpstreamAggs.subspace[i];
+  }
 
   TwoSpinAggsFast.Orthogonalise(checkOrthog, 1); // 1 gs pass
   for(int i = 0; i < TwoSpinAggsSlow.Subspace().size(); ++i)
@@ -189,24 +197,27 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
-    LatticeFermion       FineVec(FGrid);              random(FPRNG, FineVec);
-    UpstreamCoarseVector CoarseVecUpstream(CGrid);    CoarseVecUpstream    = Zero();
-    BaselineCoarseVector CoarseVecBaseline(CGrid);    CoarseVecBaseline    = Zero();
-    TwoSpinCoarseVector  CoarseVecTwospinSlow(CGrid); CoarseVecTwospinSlow = Zero();
-    TwoSpinCoarseVector  CoarseVecTwospinFast(CGrid); CoarseVecTwospinFast = Zero();
-    UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
+    LatticeFermion                 FineVec(FGrid);              random(FPRNG, FineVec);
+    UpstreamCoarseVector           CoarseVecUpstream(CGrid);    CoarseVecUpstream                  = Zero();
+    BaselineCoarseVector           CoarseVecBaseline(CGrid);    CoarseVecBaseline                  = Zero();
+    ImprovedDirsaveLutCoarseVector CoarseVecImprovedDirsaveLut(CGrid); CoarseVecImprovedDirsaveLut = Zero();
+    TwoSpinCoarseVector            CoarseVecTwospinSlow(CGrid); CoarseVecTwospinSlow               = Zero();
+    TwoSpinCoarseVector            CoarseVecTwospinFast(CGrid); CoarseVecTwospinFast               = Zero();
+    UpstreamCoarseVector           CoarseVecUpstreamTmp(CGrid);
     // clang-format on
 
     double flop = FVolume * (8 * FSiteElems) * nBasis;
     double byte = FVolume * (2 * 1 + 2 * FSiteElems) * nBasis * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamAggs.ProjectToSubspace,    flop, byte, nIterMin, nSecMin, CoarseVecUpstream,    FineVec);
-    BenchmarkFunction(BaselineAggs.ProjectToSubspace,    flop, byte, nIterMin, nSecMin, CoarseVecBaseline,    FineVec);
-    BenchmarkFunction(TwoSpinAggsSlow.ProjectToSubspace, flop, byte, nIterMin, nSecMin, CoarseVecTwospinSlow, FineVec);
-    BenchmarkFunction(TwoSpinAggsFast.ProjectToSubspace, flop, byte, nIterMin, nSecMin, CoarseVecTwospinFast, FineVec);
+    BenchmarkFunction(UpstreamAggs.ProjectToSubspace,           flop, byte, nIterMin, nSecMin, CoarseVecUpstream,           FineVec);
+    BenchmarkFunction(BaselineAggs.ProjectToSubspace,           flop, byte, nIterMin, nSecMin, CoarseVecBaseline,           FineVec);
+    BenchmarkFunction(ImprovedDirsaveLutAggs.ProjectToSubspace, flop, byte, nIterMin, nSecMin, CoarseVecImprovedDirsaveLut, FineVec);
+    BenchmarkFunction(TwoSpinAggsSlow.ProjectToSubspace,        flop, byte, nIterMin, nSecMin, CoarseVecTwospinSlow,        FineVec);
+    BenchmarkFunction(TwoSpinAggsFast.ProjectToSubspace,        flop, byte, nIterMin, nSecMin, CoarseVecTwospinFast,        FineVec);
 
     // clang-format off
     printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecBaseline);
+    printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecImprovedDirsaveLut);
     convertLayout(CoarseVecTwospinSlow,CoarseVecUpstreamTmp); printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecUpstreamTmp);
     convertLayout(CoarseVecTwospinFast,CoarseVecUpstreamTmp); printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecUpstreamTmp);
     // clang-format on
@@ -218,25 +229,29 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
-    LatticeFermion       FineVecUpstream(FGrid);      FineVecUpstream    = Zero();
-    LatticeFermion       FineVecBaseline(FGrid);      FineVecBaseline    = Zero();
-    LatticeFermion       FineVecTwospinSlow(FGrid);   FineVecTwospinSlow = Zero();
-    LatticeFermion       FineVecTwospinFast(FGrid);   FineVecTwospinFast = Zero();
-    UpstreamCoarseVector CoarseVecUpstream(CGrid);    random(CPRNG, CoarseVecUpstream);
-    BaselineCoarseVector CoarseVecBaseline(CGrid);    CoarseVecBaseline = CoarseVecUpstream;
-    TwoSpinCoarseVector  CoarseVecTwospinSlow(CGrid); convertLayout(CoarseVecUpstream, CoarseVecTwospinSlow);
-    TwoSpinCoarseVector  CoarseVecTwospinFast(CGrid); convertLayout(CoarseVecUpstream, CoarseVecTwospinFast);
+    LatticeFermion                 FineVecUpstream(FGrid);      FineVecUpstream                    = Zero();
+    LatticeFermion                 FineVecBaseline(FGrid);      FineVecBaseline                    = Zero();
+    LatticeFermion                 FineVecImprovedDirsaveLut(FGrid); FineVecImprovedDirsaveLut     = Zero();
+    LatticeFermion                 FineVecTwospinSlow(FGrid);   FineVecTwospinSlow                 = Zero();
+    LatticeFermion                 FineVecTwospinFast(FGrid);   FineVecTwospinFast                 = Zero();
+    UpstreamCoarseVector           CoarseVecUpstream(CGrid);    random(CPRNG, CoarseVecUpstream);
+    BaselineCoarseVector           CoarseVecBaseline(CGrid);    CoarseVecBaseline                  = CoarseVecUpstream;
+    ImprovedDirsaveLutCoarseVector CoarseVecImprovedDirsaveLut(CGrid); CoarseVecImprovedDirsaveLut = CoarseVecUpstream;
+    TwoSpinCoarseVector            CoarseVecTwospinSlow(CGrid); convertLayout(CoarseVecUpstream, CoarseVecTwospinSlow);
+    TwoSpinCoarseVector            CoarseVecTwospinFast(CGrid); convertLayout(CoarseVecUpstream, CoarseVecTwospinFast);
     // clang-format on
 
     double flop = FVolume * (8 * (nBasis - 1) + 6) * FSiteElems;
     double byte = FVolume * ((1 * 1 + 3 * FSiteElems) * (nBasis - 1) + (1 * 1 + 2 * FSiteElems) * 1) * sizeof(Complex);
 
-    BenchmarkFunction(UpstreamAggs.PromoteFromSubspace,    flop, byte, nIterMin, nSecMin, CoarseVecUpstream,    FineVecUpstream);
-    BenchmarkFunction(BaselineAggs.PromoteFromSubspace,    flop, byte, nIterMin, nSecMin, CoarseVecBaseline,    FineVecBaseline);
-    BenchmarkFunction(TwoSpinAggsSlow.PromoteFromSubspace, flop, byte, nIterMin, nSecMin, CoarseVecTwospinSlow, FineVecTwospinSlow);
-    BenchmarkFunction(TwoSpinAggsFast.PromoteFromSubspace, flop, byte, nIterMin, nSecMin, CoarseVecTwospinFast, FineVecTwospinFast);
+    BenchmarkFunction(UpstreamAggs.PromoteFromSubspace,           flop, byte, nIterMin, nSecMin, CoarseVecUpstream,           FineVecUpstream);
+    BenchmarkFunction(BaselineAggs.PromoteFromSubspace,           flop, byte, nIterMin, nSecMin, CoarseVecBaseline,           FineVecBaseline);
+    BenchmarkFunction(ImprovedDirsaveLutAggs.PromoteFromSubspace, flop, byte, nIterMin, nSecMin, CoarseVecImprovedDirsaveLut, FineVecImprovedDirsaveLut);
+    BenchmarkFunction(TwoSpinAggsSlow.PromoteFromSubspace,        flop, byte, nIterMin, nSecMin, CoarseVecTwospinSlow,        FineVecTwospinSlow);
+    BenchmarkFunction(TwoSpinAggsFast.PromoteFromSubspace,        flop, byte, nIterMin, nSecMin, CoarseVecTwospinFast,        FineVecTwospinFast);
 
     printDeviationFromReference(tol, FineVecUpstream, FineVecBaseline);
+    printDeviationFromReference(tol, FineVecUpstream, FineVecImprovedDirsaveLut);
     printDeviationFromReference(tol, FineVecUpstream, FineVecTwospinSlow);
     printDeviationFromReference(tol, FineVecUpstream, FineVecTwospinFast);
   }
@@ -252,8 +267,10 @@ int main(int argc, char** argv) {
       TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
     }
     performChiralDoubling(UpstreamAggs.subspace);
-    for(int i = 0; i < UpstreamAggs.subspace.size(); ++i)
+    for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) {
       BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
+      ImprovedDirsaveLutAggs.subspace[i] = UpstreamAggs.subspace[i];
+    }
 
     double flopLocalInnerProduct = FVolume * (8 * FSiteElems - 2);
     double byteLocalInnerProduct = FVolume * (2 * FSiteElems + 1 * 1) * sizeof(Complex);
@@ -286,16 +303,20 @@ int main(int argc, char** argv) {
     uint64_t nSecOnce  = 100;
     auto checkOrthog = 0;
 
-    BenchmarkFunction(UpstreamAggs.Orthogonalise,    flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
-    BenchmarkFunction(BaselineAggs.Orthogonalise,    flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
-    BenchmarkFunction(TwoSpinAggsSlow.Orthogonalise, flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
-    BenchmarkFunction(TwoSpinAggsFast.Orthogonalise, flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
+    BenchmarkFunction(UpstreamAggs.Orthogonalise,           flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
+    BenchmarkFunction(BaselineAggs.Orthogonalise,           flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
+    BenchmarkFunction(ImprovedDirsaveLutAggs.Orthogonalise, flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
+    BenchmarkFunction(TwoSpinAggsSlow.Orthogonalise,        flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
+    BenchmarkFunction(TwoSpinAggsFast.Orthogonalise,        flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
 
     undoChiralDoubling(UpstreamAggs.subspace); // necessary for comparison
     undoChiralDoubling(BaselineAggs.subspace); // necessary for comparison
+    undoChiralDoubling(ImprovedDirsaveLutAggs.subspace); // necessary for comparison
 
     std::cout << GridLogMessage << "Deviations of BaselineAggs.Subspace() from UpstreamAggs.subspace" << std::endl;
     for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], BaselineAggs.Subspace()[i]);
+    std::cout << GridLogMessage << "Deviations of ImprovedDirsaveLutAggs.Subspace() from UpstreamAggs.subspace" << std::endl;
+    for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], ImprovedDirsaveLutAggs.subspace[i]);
     std::cout << GridLogMessage << "Deviations of TwoSpinAggsSlow.Subspace() from UpstreamAggs.subspace" << std::endl;
     for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], TwoSpinAggsSlow.Subspace()[i]);
     std::cout << GridLogMessage << "Deviations of TwoSpinAggsFast.Subspace() from UpstreamAggs.subspace" << std::endl;

@@ -120,6 +120,57 @@ inline void blockLutedInnerProduct(Lattice<iVector<CComplex, nbasis>>  &coarseDa
   });
 }
 
+template<class vobj, class CComplex, int nbasis>
+inline void blockLutedAxpy(const Lattice<iVector<CComplex, nbasis>> &coarseData,
+                           Lattice<vobj>                            &fineData,
+                           const std::vector<Lattice<vobj>>         &Basis,
+                           const Rework::CoarseningLookupTable      &lut) {
+  GridBase *fine = fineData.Grid();
+  GridBase *coarse = coarseData.Grid();
+
+  int ndimU = Basis[0].Grid()->_ndimension;
+  int ndimF = coarse->_ndimension;
+  int LLs   = 1;
+
+  // checks
+  assert(fine->_ndimension == ndimF);
+  assert(ndimF == ndimU || ndimF == ndimU+1);
+  assert(nbasis == Basis.size());
+  if(ndimF == ndimU) { // strictly 4d or strictly 5d
+    assert(lut.gridPointersMatch(coarse, fine));
+    for(auto const& elem : Basis) conformable(elem, fineData);
+    LLs = 1;
+  } else if(ndimF == ndimU+1) { // 4d with mrhs via 5th dimension
+    assert(coarse->_rdimensions[0] == fine->_rdimensions[0]);   // same extent in 5th dimension
+    assert(coarse->_fdimensions[0] == coarse->_rdimensions[0]); // 5th dimension strictly local and not cb'ed
+    assert(fine->_fdimensions[0]   == fine->_rdimensions[0]);   // 5th dimension strictly local and not cb'ed
+    LLs = coarse->_rdimensions[0];
+  }
+
+  auto rlut_v       = lut.ReverseView();
+  auto fineData_v   = fineData.View();
+  auto coarseData_v = coarseData.View();
+
+  auto  Basis_vc = getViewContainer(Basis);
+  auto* Basis_vp = &Basis_vc[0];
+
+  accelerator_for(sfF, fine->oSites(), vobj::Nsimd(), {
+    auto s5  = sfF%LLs;
+    auto sfU = sfF/LLs;
+    auto scU = rlut_v[sfU];
+    auto scF = scU*LLs + s5;
+
+    auto fineData_t = fineData_v(sfF);
+    for(int i=0; i<nbasis; ++i) {
+      if(i == 0)
+        fineData_t = coarseData_v(scF)(i) * Basis_vp[i](sfU);
+      else
+        fineData_t = fineData_t + coarseData_v(scF)(i) * Basis_vp[i](sfU);
+    }
+    coalescedWrite(fineData_v[sfF], fineData_t);
+  });
+}
+
 class Geometry {
 public:
   int npoint;
@@ -189,12 +240,14 @@ public:
   GridBase *FineGrid;
   std::vector<Lattice<Fobj> > subspace;
   int checkerboard;
+  Grid::Rework::CoarseningLookupTable lut;
   int Checkerboard(void){return checkerboard;}
   Aggregation(GridBase *_CoarseGrid,GridBase *_FineGrid,int _checkerboard) : 
     CoarseGrid(_CoarseGrid),
     FineGrid(_FineGrid),
     subspace(nbasis,_FineGrid),
-    checkerboard(_checkerboard)
+    checkerboard(_checkerboard),
+    lut(CoarseGrid, FineGrid)
   {
   };
   
@@ -222,11 +275,11 @@ public:
     std::cout<<GridLogMessage <<"CheckOrthog done"<<std::endl;
   }
   void ProjectToSubspace(CoarseVector &CoarseVec,const FineField &FineVec){
-    blockProject(CoarseVec,FineVec,subspace);
+    blockLutedInnerProduct(CoarseVec,FineVec,subspace,lut);
   }
   void PromoteFromSubspace(const CoarseVector &CoarseVec,FineField &FineVec){
     FineVec.Checkerboard() = subspace[0].Checkerboard();
-    blockPromote(CoarseVec,FineVec,subspace);
+    blockLutedAxpy(CoarseVec,FineVec,subspace,lut);
   }
   void CreateSubspaceRandom(GridParallelRNG &RNG){
     for(int i=0;i<nbasis;i++){
