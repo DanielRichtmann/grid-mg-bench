@@ -103,23 +103,20 @@ public:
     auto ndimU = projector[0].Grid()->_ndimension;
     auto ndimF = coarseGrid->_ndimension;
 
-    assert(ndimU == 4);
-    assert(ndimF == 4 || ndimF == 5);
     assert(fineGrid->_ndimension == ndimF);
+    assert(ndimF == ndimU || ndimF == ndimU+1);
+    assert(projector.size() == Nc_c);
 
     int LLs = 1;
-    if(ndimF == 5) {
+    if(ndimF == ndimU) {
+      assert(lut.gridPointersMatch(coarseGrid, fineGrid));
+      for(auto const& elem : projector) conformable(elem, fineVec);
+      LLs = 1;
+    } else if(ndimF == ndimU+1) {
       assert(coarseGrid->_fdimensions[0] == coarseGrid->_rdimensions[0]); // 5th dimension strictly local and not cb'ed
       assert(fineGrid->_fdimensions[0] == fineGrid->_rdimensions[0]); // 5th dimension strictly local and not cb'ed
       assert(coarseGrid->_rdimensions[0] == fineGrid->_rdimensions[0]); // same extent in 5th dimension
       LLs = coarseGrid->_rdimensions[0];
-    }
-
-    // checks
-    assert(projector.size() == Nc_c);
-    if(ndimF == 4) {
-      assert(lut.gridPointersMatch(coarseGrid, fineGrid));
-      for(auto const& elem : projector) conformable(elem, fineVec);
     }
 
     coarseVec = Zero(); // runs on CPU
@@ -217,23 +214,20 @@ public:
     auto ndimU = projector[0].Grid()->_ndimension;
     auto ndimF = coarseGrid->_ndimension;
 
-    assert(ndimU == 4);
-    assert(ndimF == 4 || ndimF == 5);
     assert(fineGrid->_ndimension == ndimF);
+    assert(ndimF == ndimU || ndimF == ndimU+1);
+    assert(projector.size() == Nc_c);
 
     int LLs = 1;
-    if(ndimF == 5) {
+    if(ndimF == ndimU) {
+      assert(lut.gridPointersMatch(coarseGrid, fineGrid));
+      for(auto const& elem : projector) conformable(elem, fineVec);
+      LLs = 1;
+    } else if(ndimF == ndimU+1) {
       assert(coarseGrid->_fdimensions[0] == coarseGrid->_rdimensions[0]); // 5th dimension strictly local and not cb'ed
       assert(fineGrid->_fdimensions[0] == fineGrid->_rdimensions[0]); // 5th dimension strictly local and not cb'ed
       assert(coarseGrid->_rdimensions[0] == fineGrid->_rdimensions[0]); // same extent in 5th dimension
       LLs = coarseGrid->_rdimensions[0];
-    }
-
-    // checks
-    assert(projector.size() == Nc_c);
-    if(ndimF == 4) {
-      assert(lut.gridPointersMatch(coarseGrid, fineGrid));
-      for(auto const& elem : projector) conformable(elem, fineVec);
     }
 
     typedef CoarseningLookupTable::size_type size_type;
