@@ -55,16 +55,10 @@ int main(int argc, char** argv) {
   std::cout << GridLogMessage << "FGrid:" << std::endl; FGrid->show_decomposition();
   std::cout << GridLogMessage << "CGrid:" << std::endl; CGrid->show_decomposition();
 
-  CoarseningLookupTable lut(CGrid, FGrid, false);
-  CoarseningLookupTable lut_new(CGrid, FGrid, true);
-
-  // this works!
-  // Vector<index_type const*> tmp;
-  // for(index_type sc = 0; sc < lut().size(); ++sc) tmp.push_back(&lut()[sc][0]);
-  // auto** lut_p = &tmp[0];
+  CoarseningLookupTable lut(CGrid, FGrid);
 
   /////////////////////////////////////////////////////////////////////////////
-  //                              Begin of tests                             //
+  //                             The actual tests                            //
   /////////////////////////////////////////////////////////////////////////////
 
   typedef CoarseningLookupTable::index_type index_type;
@@ -99,38 +93,6 @@ int main(int argc, char** argv) {
 
   std::cout << GridLogMessage << "First test passed" << std::endl;
 
-  auto lut_new_v   = lut_new.View();
-  auto sizes_new_v = lut_new.Sizes();
-  auto rlut_new_v  = lut_new.ReverseView();
-
-  for(index_type sc = 0; sc < lut().size(); ++sc) {
-    for(index_type i = 0; i < lut()[sc].size(); ++i) {
-      auto sf_original  = lut()[sc][i];
-      auto sf_ptr       = lut_v[sc][i];
-      auto sc_reverse   = rlut_v[sf_original];
-      auto diff_ptr     = sf_original - sf_ptr;
-      auto diff_reverse = sc - sc_reverse;
-      assert(diff_ptr == 0);
-      assert(diff_reverse == 0);
-
-      auto sf_original_new = lut_new()[sc][i];
-      auto sf_ptr_new      = lut_new_v[sc][i];
-      auto sc_reverse_new      = rlut_new_v[sf_original_new];
-      auto diff_ptr_new        = sf_original_new - sf_ptr_new;
-      auto diff_reverse_new    = sc - sc_reverse_new;
-      assert(diff_ptr_new == 0);
-      assert(diff_reverse_new == 0);
-
-      assert(sf_original == sf_original_new);
-      assert(sf_ptr == sf_ptr_new);
-      assert(sc_reverse == sc_reverse_new);
-      assert(diff_ptr == diff_ptr_new);
-      assert(diff_reverse == diff_reverse_new);
-    }
-  }
-
-  std::cout << GridLogMessage << "Second test passed" << std::endl;
-
   accelerator_for(sc, CGrid->oSites(), vComplex::Nsimd(), {
     for(size_type i = 0; i < sizes_v[sc]; ++i) {
       auto sf = lut_v[sc][i];
@@ -138,14 +100,14 @@ int main(int argc, char** argv) {
     }
   });
 
-  std::cout << GridLogMessage << "Third test passed" << std::endl;
+  std::cout << GridLogMessage << "Second test passed" << std::endl;
 
   accelerator_for(sf, FGrid->oSites(), vComplex::Nsimd(), {
     auto sc = rlut_v[sf];
     printf("GPU_ACCESSIBILITY_REVERSE: sf = %lu, sc = %lu\n", sf, sc);
   });
 
-  std::cout << GridLogMessage << "Fourth test passed" << std::endl;
+  std::cout << GridLogMessage << "Third test passed" << std::endl;
 
   Grid_finalize();
 }
