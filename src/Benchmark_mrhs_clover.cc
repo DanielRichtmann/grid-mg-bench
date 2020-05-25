@@ -116,7 +116,7 @@ int main(int argc, char** argv) {
   WilsonCloverFermionR Dwc(Umu, *UGrid, *UrbGrid, mass, csw, csw, anisParams, implParams);
 
   WilsonMRHSFermionR Dw5(Umu, *FGrid, *FrbGrid, *UGrid, *UrbGrid, mass, implParams);
-  WilsonCloverMRHSFermionR Dwc5(Umu, *FGrid, *FrbGrid, *UGrid, *UrbGrid, mass, csw, csw, implParams);
+  WilsonCloverMRHSFermionR Dwc5(Umu, *FGrid, *FrbGrid, *UGrid, *UrbGrid, mass, csw, csw, anisParams, implParams);
 
   /////////////////////////////////////////////////////////////////////////////
   //             Calculate numbers needed for performance figures            //
