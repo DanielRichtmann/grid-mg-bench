@@ -153,7 +153,7 @@ int main(int argc, char** argv) {
   wilson_diag_performed.elem = 2 * spinor.elem;
 
   clover_diag_necessary.flop = 2 * (cMatMulFlop(Nhs*Nc) - 4*Nhs*Nc); // 2 6x6 matmuls - diff between compl mul and real mul on diagonal
-  clover_diag_performed.flop = cMatMulFlop(spinor.elem) * spinor.elem * spinor.elem; // clovmat x spinor
+  clover_diag_performed.flop = cMatMulFlop(spinor.elem);             // clovmat x spinor
 
   clover_diag_necessary.elem = clovmat_packed.elem + 2 * spinor.elem;
   clover_diag_performed.elem = clovmat.elem + 2 * spinor.elem;
