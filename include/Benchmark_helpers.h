@@ -37,7 +37,7 @@ NAMESPACE_BEGIN(BenchmarkHelpers);
   do { \
     uint64_t nIterFinal = 1; \
     if(nIterMin != 1) { \
-      uint64_t nIterInitial = 5; \
+      uint64_t nIterInitial = 10; \
       double t0 = usecond(); \
       for(uint64_t i = 0; i < nIterInitial; ++i) { \
         __SSC_START; \
@@ -62,7 +62,7 @@ NAMESPACE_BEGIN(BenchmarkHelpers);
   do { \
     uint64_t nIterFinal = 1; \
     if(nIterMin != 1) { \
-      uint64_t nIterInitial = 5; \
+      uint64_t nIterInitial = 10; \
       double t0 = usecond(); \
       for(uint64_t i = 0; i < nIterInitial; ++i) { \
         for(uint64_t rhs = 0; rhs < nRHS; ++rhs) { \
