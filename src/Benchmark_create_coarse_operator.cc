@@ -135,16 +135,22 @@ int main(int argc, char** argv) {
   LatticeGaugeField Umu(FGrid); SU3::HotConfiguration(FPRNG, Umu);
 
   RealD mass = 0.5;
+  RealD csw = 1.0;
 
-  WilsonFermionR                                      Dw(Umu, *FGrid, *FrbGrid, mass);
-  MdagMLinearOperator<WilsonFermionR, LatticeFermion> LinOp(Dw);
+  WilsonFermionR       Dw(Umu, *FGrid, *FrbGrid, mass);
+  WilsonCloverFermionR Dwc(Umu, *FGrid, *FrbGrid, mass, csw, csw);
+
+  MdagMLinearOperator<WilsonFermionR, LatticeFermion> LinOp(Dwc);
 
   GridCartesian*         FGrid5d   = SpaceTimeGrid::makeFiveDimGrid(nParSetupVecs, FGrid);
   GridRedBlackCartesian* FrbGrid5d = SpaceTimeGrid::makeFiveDimRedBlackGrid(nParSetupVecs, FGrid);
   GridCartesian*         CGrid5d   = SpaceTimeGrid::makeFiveDimGrid(nParSetupVecs, CGrid);
   GridRedBlackCartesian* CrbGrid5d = SpaceTimeGrid::makeFiveDimRedBlackGrid(nParSetupVecs, CGrid);
-  WilsonMRHSFermionR     Dw5(Umu, *FGrid5d, *FrbGrid5d, *FGrid, *FrbGrid, mass);
-  MdagMLinearOperator<WilsonMRHSFermionR, LatticeFermion> LinOp5(Dw5);
+
+  WilsonMRHSFermionR       Dw5(Umu, *FGrid5d, *FrbGrid5d, *FGrid, *FrbGrid, mass);
+  WilsonCloverMRHSFermionR Dwc5(Umu, *FGrid5d, *FrbGrid5d, *FGrid, *FrbGrid, mass, csw, csw);
+
+  MdagMLinearOperator<WilsonMRHSFermionR, LatticeFermion> LinOp5(Dwc5);
 #endif
 
   /////////////////////////////////////////////////////////////////////////////
