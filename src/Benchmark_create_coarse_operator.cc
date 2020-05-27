@@ -61,9 +61,11 @@ int main(int argc, char** argv) {
         int  nParSetupVecs       = readFromCommandLineInt(&argc, &argv, "--parsetupvecs", nB);
   Coordinate blockSize           = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({4, 4, 4, 4}));
   bool       runAll              = readFromCommandLineToggle(&argc, &argv, "--all");
+  bool       useClover           = readFromCommandLineToggle(&argc, &argv, "--clover");
   std::vector<std::string> toRun = readFromCommandLineCSL(&argc, &argv, "--torun", {"Speed2FastProj"});
   // clang-format on
 
+  std::cout << GridLogMessage << "Using " << (useClover ? "clover" : "wilson") << " fermions" << std::endl;
   std::cout << GridLogMessage << "Compiled with nBasis = " << nBasis << " -> nB = " << nB << std::endl;
 
   /////////////////////////////////////////////////////////////////////////////
@@ -140,7 +142,9 @@ int main(int argc, char** argv) {
   WilsonFermionR       Dw(Umu, *FGrid, *FrbGrid, mass);
   WilsonCloverFermionR Dwc(Umu, *FGrid, *FrbGrid, mass, csw, csw);
 
-  MdagMLinearOperator<WilsonFermionR, LatticeFermion> LinOp(Dwc);
+  MdagMLinearOperator<WilsonFermionR, LatticeFermion>  LinOpDw(Dw);
+  MdagMLinearOperator<WilsonFermionR, LatticeFermion>  LinOpDwc(Dwc);
+  MdagMLinearOperator<WilsonFermionR, LatticeFermion>* LinOp;
 
   GridCartesian*         FGrid5d   = SpaceTimeGrid::makeFiveDimGrid(nParSetupVecs, FGrid);
   GridRedBlackCartesian* FrbGrid5d = SpaceTimeGrid::makeFiveDimRedBlackGrid(nParSetupVecs, FGrid);
@@ -150,7 +154,18 @@ int main(int argc, char** argv) {
   WilsonMRHSFermionR       Dw5(Umu, *FGrid5d, *FrbGrid5d, *FGrid, *FrbGrid, mass);
   WilsonCloverMRHSFermionR Dwc5(Umu, *FGrid5d, *FrbGrid5d, *FGrid, *FrbGrid, mass, csw, csw);
 
-  MdagMLinearOperator<WilsonMRHSFermionR, LatticeFermion> LinOp5(Dwc5);
+  MdagMLinearOperator<WilsonMRHSFermionR, LatticeFermion> LinOpDw5(Dw5);
+  MdagMLinearOperator<WilsonMRHSFermionR, LatticeFermion> LinOpDwc5(Dwc5);
+
+  MdagMLinearOperator<WilsonMRHSFermionR, LatticeFermion>* LinOp5;
+
+  if(useClover) {
+    LinOp = &LinOpDw;
+    LinOp5 = &LinOpDw5;
+  } else {
+    LinOp  = &LinOpDwc;
+    LinOp5 = &LinOpDwc5;
+  }
 #endif
 
   /////////////////////////////////////////////////////////////////////////////
@@ -279,7 +294,7 @@ int main(int argc, char** argv) {
 
     // Upstream = Reference (always run) //////////////////////////////////////
 
-    BenchmarkFunction(UpstreamCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, UpstreamAggs);
+    BenchmarkFunction(UpstreamCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, *LinOp, UpstreamAggs);
     auto profResults = UpstreamCMat.GetProfile(); UpstreamCMat.ResetProfile();
     prettyPrintProfiling("Upstream", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -293,7 +308,7 @@ int main(int argc, char** argv) {
         BaselineCoarsenedMatrix BaselineCMat(*CGrid, *CrbGrid, isHermitian);
         for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
 
-        BenchmarkFunction(BaselineCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, BaselineAggs);
+        BenchmarkFunction(BaselineCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, *LinOp, BaselineAggs);
         profResults = BaselineCMat.GetProfile(); BaselineCMat.ResetProfile();
         prettyPrintProfiling("Baseline", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -310,7 +325,7 @@ int main(int argc, char** argv) {
         ImprovedDirsaveCoarsenedMatrix ImprovedDirsaveCMat(*CGrid, isHermitian);
         for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedDirsaveAggs.subspace[i] = UpstreamAggs.subspace[i];
 
-        BenchmarkFunction(ImprovedDirsaveCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, ImprovedDirsaveAggs);
+        BenchmarkFunction(ImprovedDirsaveCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, *LinOp, ImprovedDirsaveAggs);
         profResults = ImprovedDirsaveCMat.GetProfile(); ImprovedDirsaveCMat.ResetProfile();
         prettyPrintProfiling("ImprovedDirsave", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -327,7 +342,7 @@ int main(int argc, char** argv) {
         ImprovedDirsaveLutCoarsenedMatrix ImprovedDirsaveLutCMat(*CGrid, isHermitian);
         for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedDirsaveLutAggs.subspace[i] = UpstreamAggs.subspace[i];
 
-        BenchmarkFunction(ImprovedDirsaveLutCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, ImprovedDirsaveLutAggs);
+        BenchmarkFunction(ImprovedDirsaveLutCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, *LinOp, ImprovedDirsaveLutAggs);
         profResults = ImprovedDirsaveLutCMat.GetProfile(); ImprovedDirsaveLutCMat.ResetProfile();
         prettyPrintProfiling("ImprovedDirsaveLut", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -344,7 +359,7 @@ int main(int argc, char** argv) {
         ImprovedDirsaveLutMRHSCoarsenedMatrix ImprovedDirsaveLutMRHSCMat(*FGrid5d, *FGrid, *CGrid5d, *CGrid, isHermitian);
         for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) ImprovedDirsaveLutMRHSAggs.subspace[i] = UpstreamAggs.subspace[i];
 
-        BenchmarkFunction(ImprovedDirsaveLutMRHSCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid5d, LinOp5, ImprovedDirsaveLutMRHSAggs);
+        BenchmarkFunction(ImprovedDirsaveLutMRHSCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid5d, *LinOp5, ImprovedDirsaveLutMRHSAggs);
         profResults = ImprovedDirsaveLutMRHSCMat.GetProfile(); ImprovedDirsaveLutMRHSCMat.ResetProfile();
         prettyPrintProfiling("ImprovedDirsaveLutMRHS", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -363,7 +378,7 @@ int main(int argc, char** argv) {
         for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
         performChiralDoubling(UpstreamAggs.subspace);
 
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, *LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed0.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -382,7 +397,7 @@ int main(int argc, char** argv) {
         for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
         performChiralDoubling(UpstreamAggs.subspace);
 
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, *LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed0.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -401,7 +416,7 @@ int main(int argc, char** argv) {
         for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
         performChiralDoubling(UpstreamAggs.subspace);
 
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, *LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed1.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -420,7 +435,7 @@ int main(int argc, char** argv) {
         for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
         performChiralDoubling(UpstreamAggs.subspace);
 
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, *LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed1.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -439,7 +454,7 @@ int main(int argc, char** argv) {
         for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
         performChiralDoubling(UpstreamAggs.subspace);
 
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, *LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed2.SlowProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
@@ -458,7 +473,7 @@ int main(int argc, char** argv) {
         for(int i = 0; i < TwoSpinAggs.Subspace().size(); ++i) TwoSpinAggs.Subspace()[i] = UpstreamAggs.subspace[i];
         performChiralDoubling(UpstreamAggs.subspace);
 
-        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, LinOp, TwoSpinAggs);
+        BenchmarkFunction(TwoSpinCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid, *LinOp, TwoSpinAggs);
         profResults = TwoSpinCMat.GetProfile(); TwoSpinCMat.ResetProfile();
         prettyPrintProfiling("TwoSpin.Speed2.FastProj", profResults, profResults["CoarsenOperator.Total"].t, false);
 
