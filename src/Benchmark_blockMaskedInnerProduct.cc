@@ -76,6 +76,7 @@ int main(int argc, char** argv) {
   // clang-format on
 
   std::cout << GridLogMessage << "Compiled with nBasis = " << nBasis << " -> nB = " << nB << std::endl;
+  std::cout << GridLogMessage << "Using Ls = " << Ls << std::endl;
 
   /////////////////////////////////////////////////////////////////////////////
   //                              General setup                              //
@@ -209,12 +210,12 @@ int main(int argc, char** argv) {
   std::vector<UpstreamFineComplexField> masks(geom.npoint, FGrid_f);
   std::vector<CoarseningLookupTable> lut(geom.npoint);
 
-  {
+  { // original setup code taken from CoarsenedMatrix
     UpstreamFineComplexField one(FGrid_f); one = UpstreamScalarType(1.0, 0.0);
     UpstreamFineComplexField zero(FGrid_f); zero = UpstreamScalarType(0.0, 0.0);
     UpstreamCoor             coor(FGrid_f);
 
-    for(int p = 0; p < geom.npoint; ++p) {
+    for(int p=0; p<geom.npoint; ++p) {
       int     dir   = geom.directions[p];
       int     disp  = geom.displacements[p];
       Integer block = (FGrid_f->_rdimensions[dir] / FGrid_c->_rdimensions[dir]);
@@ -224,9 +225,9 @@ int main(int argc, char** argv) {
       if(disp == 0) {
         masks[p] = Zero();
       } else if(disp == 1) {
-        masks[p] = where(mod(coor, block) == (block - 1), one, zero);
+        masks[p] = where(mod(coor,block) == (block-1), one, zero);
       } else if(disp == -1) {
-        masks[p] = where(mod(coor, block) == (Integer)0, one, zero);
+        masks[p] = where(mod(coor,block) == (Integer)0, one, zero);
       }
 
       lut[p].populate(FGrid_c, masks[p]);
@@ -239,7 +240,7 @@ int main(int argc, char** argv) {
 
   {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
-    std::cout << GridLogMessage << "Running benchmark for ProjectToSubspace" << std::endl;
+    std::cout << GridLogMessage << "Running benchmark for blockMaskedInnerProduct" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     LatticeFermion src(FGrid_f);

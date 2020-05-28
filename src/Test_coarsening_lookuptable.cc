@@ -34,32 +34,8 @@ using namespace Grid;
 using namespace Grid::BenchmarkHelpers;
 using namespace Grid::Rework;
 
-int main(int argc, char** argv) {
-  Grid_init(&argc, &argv);
-
-  /////////////////////////////////////////////////////////////////////////////
-  //                          Read from command line                         //
-  /////////////////////////////////////////////////////////////////////////////
-
-  Coordinate blockSize = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({2, 2, 2, 2}));
-
-  /////////////////////////////////////////////////////////////////////////////
-  //                              General setup                              //
-  /////////////////////////////////////////////////////////////////////////////
-
-  Coordinate clatt = calcCoarseLattSize(GridDefaultLatt(), blockSize);
-
-  GridCartesian*         FGrid   = SpaceTimeGrid::makeFourDimGrid(GridDefaultLatt(), GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
-  GridCartesian*         CGrid   = SpaceTimeGrid::makeFourDimGrid(clatt, GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
-
-  std::cout << GridLogMessage << "FGrid:" << std::endl; FGrid->show_decomposition();
-  std::cout << GridLogMessage << "CGrid:" << std::endl; CGrid->show_decomposition();
-
-  CoarseningLookupTable lut(CGrid, FGrid);
-
-  /////////////////////////////////////////////////////////////////////////////
-  //                             The actual tests                            //
-  /////////////////////////////////////////////////////////////////////////////
+void runTest(GridBase* coarse, GridBase* fine) {
+  CoarseningLookupTable lut(coarse, fine);
 
   typedef CoarseningLookupTable::index_type index_type;
   typedef CoarseningLookupTable::size_type size_type;
@@ -93,7 +69,7 @@ int main(int argc, char** argv) {
 
   std::cout << GridLogMessage << "First test passed" << std::endl;
 
-  accelerator_for(sc, CGrid->oSites(), vComplex::Nsimd(), {
+  accelerator_for(sc, coarse->oSites(), vComplex::Nsimd(), {
     for(size_type i = 0; i < sizes_v[sc]; ++i) {
       auto sf = lut_v[sc][i];
       printf("GPU_ACCESSIBILITY_NORMAL: sc = %lu, i = %lu, sf = %lu\n", sc, i, sf);
@@ -102,12 +78,47 @@ int main(int argc, char** argv) {
 
   std::cout << GridLogMessage << "Second test passed" << std::endl;
 
-  accelerator_for(sf, FGrid->oSites(), vComplex::Nsimd(), {
+  accelerator_for(sf, fine->oSites(), vComplex::Nsimd(), {
     auto sc = rlut_v[sf];
     printf("GPU_ACCESSIBILITY_REVERSE: sf = %lu, sc = %lu\n", sf, sc);
   });
 
   std::cout << GridLogMessage << "Third test passed" << std::endl;
+}
+
+int main(int argc, char** argv) {
+  Grid_init(&argc, &argv);
+
+  /////////////////////////////////////////////////////////////////////////////
+  //                          Read from command line                         //
+  /////////////////////////////////////////////////////////////////////////////
+
+  Coordinate blockSize = readFromCommandLineCoordinate(&argc, &argv, "--blocksize", Coordinate({2, 2, 2, 2}));
+  int        Ls        = readFromCommandLineInt(&argc, &argv, "--Ls", 12);
+
+  /////////////////////////////////////////////////////////////////////////////
+  //                              General setup                              //
+  /////////////////////////////////////////////////////////////////////////////
+
+  Coordinate clatt = calcCoarseLattSize(GridDefaultLatt(), blockSize);
+
+  GridCartesian*         FGrid_4d   = SpaceTimeGrid::makeFourDimGrid(GridDefaultLatt(), GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
+  GridCartesian*         CGrid_4d   = SpaceTimeGrid::makeFourDimGrid(clatt, GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
+  GridCartesian*         FGrid_5d   = SpaceTimeGrid::makeFiveDimGrid(Ls, FGrid_4d);
+  GridCartesian*         CGrid_5d   = SpaceTimeGrid::makeFiveDimGrid(1, CGrid_4d);
+
+  std::cout << GridLogMessage << "FGrid_4d:" << std::endl; FGrid_4d->show_decomposition();
+  std::cout << GridLogMessage << "CGrid_4d:" << std::endl; CGrid_4d->show_decomposition();
+  std::cout << GridLogMessage << "FGrid_5d:" << std::endl; FGrid_5d->show_decomposition();
+  std::cout << GridLogMessage << "CGrid_5d:" << std::endl; CGrid_5d->show_decomposition();
+
+  runTest(CGrid_4d, FGrid_4d);
+
+  std::cout << GridLogMessage << "4d tests passed" << std::endl;
+
+  runTest(CGrid_5d, FGrid_5d);
+
+  std::cout << GridLogMessage << "5d tests passed" << std::endl;
 
   Grid_finalize();
 }
