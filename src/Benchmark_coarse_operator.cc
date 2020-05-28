@@ -132,11 +132,11 @@ int main(int argc, char** argv) {
 
   double nStencil   = UpstreamCMat.geom.npoint;
   double nAccum     = nStencil - 1;
-  double CSiteElems = getSiteElems<UpstreamCoarseVector>();
+  double siteElems_c = getSiteElems<UpstreamCoarseVector>();
 
-  std::cout << GridLogDebug << "CSiteElems = " << CSiteElems << std::endl;
+  std::cout << GridLogDebug << "siteElems_c = " << siteElems_c << std::endl;
 
-  double CVolume = std::accumulate(CGrid->_fdimensions.begin(), CGrid->_fdimensions.end(), 1, std::multiplies<double>());
+  double FVolume_c = std::accumulate(CGrid->_fdimensions.begin(), CGrid->_fdimensions.end(), 1, std::multiplies<double>());
 
   /////////////////////////////////////////////////////////////////////////////
   //                           Start of benchmarks                           //
@@ -163,8 +163,8 @@ int main(int argc, char** argv) {
     double flop_peter = osites*vTComplex::Nsimd()*nBasis*nBasis*8.0*UpstreamCMat.geom.npoint;
     double byte_peter = osites*nBasis*nBasis*UpstreamCMat.geom.npoint*sizeof(vTComplex);
 
-    double flop = CVolume * ((nStencil * (8 * CSiteElems * CSiteElems - 2 * CSiteElems) + nAccum * 2 * CSiteElems) + 8 * CSiteElems);
-    double byte = CVolume * ((nStencil * (CSiteElems * CSiteElems + CSiteElems) + CSiteElems) + CSiteElems) * sizeof(Complex);
+    double flop = FVolume_c * ((nStencil * (8 * siteElems_c * siteElems_c - 2 * siteElems_c) + nAccum * 2 * siteElems_c) + 8 * siteElems_c);
+    double byte = FVolume_c * ((nStencil * (siteElems_c * siteElems_c + siteElems_c) + siteElems_c) + siteElems_c) * sizeof(Complex);
 
     std::cout << GridLogMessage << "mine flop, byte: " << flop << ", " << byte << std::endl;
     std::cout << GridLogMessage << "peter flop, byte: " << flop_peter << ", " << byte_peter << std::endl;
@@ -190,8 +190,8 @@ int main(int argc, char** argv) {
     // clang-format on
 
     // NOTE: these values are based on Galerkin coarsening, i.e., Mdag = g5c * M * g5c
-    double flop = CVolume * ((nStencil * (8 * CSiteElems * CSiteElems - 2 * CSiteElems) + nAccum * 2 * CSiteElems) + 8 * CSiteElems) + 2 * CVolume * (3 * CSiteElems);
-    double byte = CVolume * ((nStencil * (CSiteElems * CSiteElems + CSiteElems) + CSiteElems) + CSiteElems) * sizeof(Complex) + 2 * CVolume * (3 * CSiteElems) * sizeof(Complex);
+    double flop = FVolume_c * ((nStencil * (8 * siteElems_c * siteElems_c - 2 * siteElems_c) + nAccum * 2 * siteElems_c) + 8 * siteElems_c) + 2 * FVolume_c * (3 * siteElems_c);
+    double byte = FVolume_c * ((nStencil * (siteElems_c * siteElems_c + siteElems_c) + siteElems_c) + siteElems_c) * sizeof(Complex) + 2 * FVolume_c * (3 * siteElems_c) * sizeof(Complex);
 
     BenchmarkFunction(UpstreamCMat.Mdag, flop, byte, nIterMin, nSecMin, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
     BenchmarkFunction(TwoSpinCMat.Mdag,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut);
@@ -213,8 +213,8 @@ int main(int argc, char** argv) {
     UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
     // clang-format on
 
-    double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
-    double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
+    double flop = FVolume_c * (8 * siteElems_c * siteElems_c - 2 * siteElems_c);
+    double byte = FVolume_c * (siteElems_c * siteElems_c + 2 * siteElems_c) * sizeof(Complex);
 
     BenchmarkFunction(UpstreamCMat.Mdir, flop, byte, nIterMin, nSecMin, CoarseVecUpstreamIn, CoarseVecUpstreamOut, 2, 1);
     BenchmarkFunction(TwoSpinCMat.Mdir,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
@@ -236,8 +236,8 @@ int main(int argc, char** argv) {
     UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
     // clang-format on
 
-    double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
-    double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
+    double flop = FVolume_c * (8 * siteElems_c * siteElems_c - 2 * siteElems_c);
+    double byte = FVolume_c * (siteElems_c * siteElems_c + 2 * siteElems_c) * sizeof(Complex);
 
     BenchmarkFunction(UpstreamCMat.Mdiag, flop, byte, nIterMin, nSecMin, CoarseVecUpstreamIn, CoarseVecUpstreamOut);
     BenchmarkFunction(TwoSpinCMat.Mdiag,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut);
@@ -259,8 +259,8 @@ int main(int argc, char** argv) {
   //   UpstreamCoarseVector CoarseVecUpstreamTmp(CGrid);
   //   // clang-format on
 
-  //   double flop = CVolume * (8 * CSiteElems * CSiteElems - 2 * CSiteElems);
-  //   double byte = CVolume * (CSiteElems * CSiteElems + 2 * CSiteElems) * sizeof(Complex);
+  //   double flop = FVolume_c * (8 * siteElems_c * siteElems_c - 2 * siteElems_c);
+  //   double byte = FVolume_c * (siteElems_c * siteElems_c + 2 * siteElems_c) * sizeof(Complex);
 
   //   BenchmarkFunction(UpstreamCMat.Mdir, flop, byte, nIterMin, nSecMin, CoarseVecUpstreamIn, CoarseVecUpstreamOut, 2, 1);
   //   BenchmarkFunction(TwoSpinCMat.Mdir,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
