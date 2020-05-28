@@ -95,8 +95,8 @@ int main(int argc, char** argv) {
   if(Ls != 1) {
     FGrid_f   = SpaceTimeGrid::makeFiveDimGrid(Ls, UGrid_f);
     FrbGrid_f = SpaceTimeGrid::makeFiveDimRedBlackGrid(Ls, UGrid_f);
-    FGrid_c   = SpaceTimeGrid::makeFiveDimGrid(Ls, UGrid_c);
-    FrbGrid_c = SpaceTimeGrid::makeFiveDimRedBlackGrid(Ls, UGrid_c);
+    FGrid_c   = SpaceTimeGrid::makeFiveDimGrid(1, UGrid_c);
+    FrbGrid_c = SpaceTimeGrid::makeFiveDimRedBlackGrid(1, UGrid_c);
   } else {
     FGrid_f   = UGrid_f;
     FrbGrid_f = UrbGrid_f;
