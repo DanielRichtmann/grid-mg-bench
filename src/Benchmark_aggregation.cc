@@ -60,9 +60,11 @@ int main(int argc, char** argv) {
   uint64_t   nIterMin  = readFromCommandLineInt(&argc, &argv, "--miniter", 1000);
   uint64_t   nSecMin   = readFromCommandLineInt(&argc, &argv, "--minsec", 5);
   int        gsPasses  = readFromCommandLineInt(&argc, &argv, "--gspasses", 1);
+  int        Ls        = readFromCommandLineInt(&argc, &argv, "--Ls", 1);
   // clang-format on
 
   std::cout << GridLogMessage << "Compiled with nBasis = " << nBasis << " -> nB = " << nB << std::endl;
+  std::cout << GridLogMessage << "Using Ls = " << Ls << std::endl;
 
   /////////////////////////////////////////////////////////////////////////////
   //                              General setup                              //
@@ -70,38 +72,43 @@ int main(int argc, char** argv) {
 
   Coordinate clatt = calcCoarseLattSize(GridDefaultLatt(), blockSize);
 
-#if defined(FIVE_DIMENSIONS) // 5d use case (u = gauge, f = fermion = fine, t = tmp, c = coarse)
-  const int              Ls      = 16;
-  GridCartesian*         UGrid   = SpaceTimeGrid::makeFourDimGrid(GridDefaultLatt(), GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
-  GridRedBlackCartesian* UrbGrid = SpaceTimeGrid::makeFourDimRedBlackGrid(UGrid);
-  GridCartesian*         FGrid   = SpaceTimeGrid::makeFiveDimGrid(Ls, UGrid);
-  GridRedBlackCartesian* FrbGrid = SpaceTimeGrid::makeFiveDimRedBlackGrid(Ls, UGrid);
-  GridCartesian*         TGrid   = SpaceTimeGrid::makeFourDimGrid(clatt, GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
-  GridRedBlackCartesian* TrbGrid = SpaceTimeGrid::makeFourDimRedBlackGrid(TGrid);
-  GridCartesian*         CGrid   = SpaceTimeGrid::makeFiveDimGrid(1, TGrid);
-  GridRedBlackCartesian* CrbGrid = SpaceTimeGrid::makeFiveDimRedBlackGrid(1, TGrid);
-#else // 4d use case (f = fine, c = coarse)
-  GridCartesian*         UGrid   = SpaceTimeGrid::makeFourDimGrid(GridDefaultLatt(), GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
-  GridRedBlackCartesian* UrbGrid = SpaceTimeGrid::makeFourDimRedBlackGrid(UGrid);
-  GridCartesian*         FGrid   = UGrid;
-  GridRedBlackCartesian* FrbGrid = UrbGrid;
-  GridCartesian*         CGrid   = SpaceTimeGrid::makeFourDimGrid(clatt, GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
-  GridRedBlackCartesian* CrbGrid = SpaceTimeGrid::makeFourDimRedBlackGrid(CGrid);
-#endif
+  GridCartesian*         UGrid_f   = SpaceTimeGrid::makeFourDimGrid(GridDefaultLatt(), GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
+  GridRedBlackCartesian* UrbGrid_f = SpaceTimeGrid::makeFourDimRedBlackGrid(UGrid_f);
+  GridCartesian*         UGrid_c   = SpaceTimeGrid::makeFourDimGrid(clatt, GridDefaultSimd(Nd, vComplex::Nsimd()), GridDefaultMpi());
+  GridRedBlackCartesian* UrbGrid_c = SpaceTimeGrid::makeFourDimRedBlackGrid(UGrid_c);
+  GridCartesian*         FGrid_f   = nullptr;
+  GridRedBlackCartesian* FrbGrid_f = nullptr;
+  GridCartesian*         FGrid_c   = nullptr;
+  GridRedBlackCartesian* FrbGrid_c = nullptr;
 
-  UGrid->show_decomposition();
-  FGrid->show_decomposition();
-  CGrid->show_decomposition();
+  if(Ls != 1) {
+    FGrid_f   = SpaceTimeGrid::makeFiveDimGrid(Ls, UGrid_f);
+    FrbGrid_f = SpaceTimeGrid::makeFiveDimRedBlackGrid(Ls, UGrid_f);
+    FGrid_c   = SpaceTimeGrid::makeFiveDimGrid(1, UGrid_c);
+    FrbGrid_c = SpaceTimeGrid::makeFiveDimRedBlackGrid(1, UGrid_c);
+  } else {
+    FGrid_f   = UGrid_f;
+    FrbGrid_f = UrbGrid_f;
+    FGrid_c   = UGrid_c;
+    FrbGrid_c = UrbGrid_c;
+  }
 
-  GridParallelRNG UPRNG(UGrid);
-  GridParallelRNG FPRNG(FGrid);
-  GridParallelRNG CPRNG(CGrid);
+  UGrid_f->show_decomposition();
+  FGrid_f->show_decomposition();
+  UGrid_c->show_decomposition();
+  FGrid_c->show_decomposition();
+
+  GridParallelRNG UPRNG_f(UGrid_f);
+  GridParallelRNG FPRNG_f(FGrid_f);
+  GridParallelRNG UPRNG_c(UGrid_c);
+  GridParallelRNG FPRNG_c(FGrid_c);
 
   std::vector<int> seeds({1, 2, 3, 4});
 
-  UPRNG.SeedFixedIntegers(seeds);
-  FPRNG.SeedFixedIntegers(seeds);
-  CPRNG.SeedFixedIntegers(seeds);
+  UPRNG_f.SeedFixedIntegers(seeds);
+  FPRNG_f.SeedFixedIntegers(seeds);
+  UPRNG_c.SeedFixedIntegers(seeds);
+  FPRNG_c.SeedFixedIntegers(seeds);
 
   RealD tol = getPrecision<vComplex>::value == 2 ? 1e-15 : 1e-7;
 
@@ -147,18 +154,18 @@ int main(int argc, char** argv) {
 
   const int cb = 0;
 
-  UpstreamAggregation           UpstreamAggs(CGrid, FGrid, cb);
-  BaselineAggregation           BaselineAggs(CGrid, FGrid, cb);
-  ImprovedDirsaveLutAggregation ImprovedDirsaveLutAggs(CGrid, FGrid, cb);
-  TwoSpinAggregation            TwoSpinAggsSlow(CGrid, FGrid, cb, 0);
-  TwoSpinAggregation            TwoSpinAggsFast(CGrid, FGrid, cb, 1);
+  UpstreamAggregation           UpstreamAggs(FGrid_c, FGrid_f, cb);
+  BaselineAggregation           BaselineAggs(FGrid_c, FGrid_f, cb);
+  ImprovedDirsaveLutAggregation ImprovedDirsaveLutAggs(FGrid_c, FGrid_f, cb);
+  TwoSpinAggregation            TwoSpinAggsSlow(FGrid_c, FGrid_f, cb, 0);
+  TwoSpinAggregation            TwoSpinAggsFast(FGrid_c, FGrid_f, cb, 1);
 
   const int checkOrthog = 1;
 
   // setup vectors once and distribute them to save time
   // (we check agreement of different impls below)
 
-  UpstreamAggs.CreateSubspaceRandom(FPRNG);
+  UpstreamAggs.CreateSubspaceRandom(FPRNG_f);
   for(int i = 0; i < TwoSpinAggsFast.Subspace().size(); ++i)
     TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
 
@@ -178,14 +185,16 @@ int main(int argc, char** argv) {
   //             Calculate numbers needed for performance figures            //
   /////////////////////////////////////////////////////////////////////////////
 
-  auto FSiteElems = getSiteElems<LatticeFermion>();
-  auto CSiteElems = getSiteElems<UpstreamCoarseVector>();
+  auto siteElems_f = getSiteElems<LatticeFermion>();
+  auto siteElems_c = getSiteElems<UpstreamCoarseVector>();
 
-  std::cout << GridLogDebug << "FSiteElems = " << FSiteElems << std::endl;
-  std::cout << GridLogDebug << "CSiteElems = " << CSiteElems << std::endl;
+  std::cout << GridLogDebug << "siteElems_f = " << siteElems_f << std::endl;
+  std::cout << GridLogDebug << "siteElems_c = " << siteElems_c << std::endl;
 
-  double FVolume = std::accumulate(FGrid->_fdimensions.begin(), FGrid->_fdimensions.end(), 1, std::multiplies<double>());
-  double CVolume = std::accumulate(CGrid->_fdimensions.begin(), CGrid->_fdimensions.end(), 1, std::multiplies<double>());
+  double UVolume_f = std::accumulate(UGrid_f->_fdimensions.begin(), UGrid_f->_fdimensions.end(), 1, std::multiplies<double>());
+  double FVolume_f = std::accumulate(FGrid_f->_fdimensions.begin(), FGrid_f->_fdimensions.end(), 1, std::multiplies<double>());
+  double UVolume_c = std::accumulate(UGrid_c->_fdimensions.begin(), UGrid_c->_fdimensions.end(), 1, std::multiplies<double>());
+  double FVolume_c = std::accumulate(FGrid_c->_fdimensions.begin(), FGrid_c->_fdimensions.end(), 1, std::multiplies<double>());
 
   /////////////////////////////////////////////////////////////////////////////
   //                           Start of benchmarks                           //
@@ -197,17 +206,17 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
-    LatticeFermion                 FineVec(FGrid);              random(FPRNG, FineVec);
-    UpstreamCoarseVector           CoarseVecUpstream(CGrid);    CoarseVecUpstream                  = Zero();
-    BaselineCoarseVector           CoarseVecBaseline(CGrid);    CoarseVecBaseline                  = Zero();
-    ImprovedDirsaveLutCoarseVector CoarseVecImprovedDirsaveLut(CGrid); CoarseVecImprovedDirsaveLut = Zero();
-    TwoSpinCoarseVector            CoarseVecTwospinSlow(CGrid); CoarseVecTwospinSlow               = Zero();
-    TwoSpinCoarseVector            CoarseVecTwospinFast(CGrid); CoarseVecTwospinFast               = Zero();
-    UpstreamCoarseVector           CoarseVecUpstreamTmp(CGrid);
+    LatticeFermion                 FineVec(FGrid_f);              random(FPRNG_f, FineVec);
+    UpstreamCoarseVector           CoarseVecUpstream(FGrid_c);    CoarseVecUpstream                  = Zero();
+    BaselineCoarseVector           CoarseVecBaseline(FGrid_c);    CoarseVecBaseline                  = Zero();
+    ImprovedDirsaveLutCoarseVector CoarseVecImprovedDirsaveLut(FGrid_c); CoarseVecImprovedDirsaveLut = Zero();
+    TwoSpinCoarseVector            CoarseVecTwospinSlow(FGrid_c); CoarseVecTwospinSlow               = Zero();
+    TwoSpinCoarseVector            CoarseVecTwospinFast(FGrid_c); CoarseVecTwospinFast               = Zero();
+    UpstreamCoarseVector           CoarseVecUpstreamTmp(FGrid_c);
     // clang-format on
 
-    double flop = FVolume * (8 * FSiteElems) * nBasis;
-    double byte = FVolume * (2 * 1 + 2 * FSiteElems) * nBasis * sizeof(Complex);
+    double flop = FVolume_f * (8 * siteElems_f) * nBasis;
+    double byte = FVolume_f * (2 * 1 + 2 * siteElems_f) * nBasis * sizeof(Complex);
 
     BenchmarkFunction(UpstreamAggs.ProjectToSubspace,           flop, byte, nIterMin, nSecMin, CoarseVecUpstream,           FineVec);
     BenchmarkFunction(BaselineAggs.ProjectToSubspace,           flop, byte, nIterMin, nSecMin, CoarseVecBaseline,           FineVec);
@@ -229,20 +238,20 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
     // clang-format off
-    LatticeFermion                 FineVecUpstream(FGrid);      FineVecUpstream                    = Zero();
-    LatticeFermion                 FineVecBaseline(FGrid);      FineVecBaseline                    = Zero();
-    LatticeFermion                 FineVecImprovedDirsaveLut(FGrid); FineVecImprovedDirsaveLut     = Zero();
-    LatticeFermion                 FineVecTwospinSlow(FGrid);   FineVecTwospinSlow                 = Zero();
-    LatticeFermion                 FineVecTwospinFast(FGrid);   FineVecTwospinFast                 = Zero();
-    UpstreamCoarseVector           CoarseVecUpstream(CGrid);    random(CPRNG, CoarseVecUpstream);
-    BaselineCoarseVector           CoarseVecBaseline(CGrid);    CoarseVecBaseline                  = CoarseVecUpstream;
-    ImprovedDirsaveLutCoarseVector CoarseVecImprovedDirsaveLut(CGrid); CoarseVecImprovedDirsaveLut = CoarseVecUpstream;
-    TwoSpinCoarseVector            CoarseVecTwospinSlow(CGrid); convertLayout(CoarseVecUpstream, CoarseVecTwospinSlow);
-    TwoSpinCoarseVector            CoarseVecTwospinFast(CGrid); convertLayout(CoarseVecUpstream, CoarseVecTwospinFast);
+    LatticeFermion                 FineVecUpstream(FGrid_f);      FineVecUpstream                    = Zero();
+    LatticeFermion                 FineVecBaseline(FGrid_f);      FineVecBaseline                    = Zero();
+    LatticeFermion                 FineVecImprovedDirsaveLut(FGrid_f); FineVecImprovedDirsaveLut     = Zero();
+    LatticeFermion                 FineVecTwospinSlow(FGrid_f);   FineVecTwospinSlow                 = Zero();
+    LatticeFermion                 FineVecTwospinFast(FGrid_f);   FineVecTwospinFast                 = Zero();
+    UpstreamCoarseVector           CoarseVecUpstream(FGrid_c);    random(FPRNG_c, CoarseVecUpstream);
+    BaselineCoarseVector           CoarseVecBaseline(FGrid_c);    CoarseVecBaseline                  = CoarseVecUpstream;
+    ImprovedDirsaveLutCoarseVector CoarseVecImprovedDirsaveLut(FGrid_c); CoarseVecImprovedDirsaveLut = CoarseVecUpstream;
+    TwoSpinCoarseVector            CoarseVecTwospinSlow(FGrid_c); convertLayout(CoarseVecUpstream, CoarseVecTwospinSlow);
+    TwoSpinCoarseVector            CoarseVecTwospinFast(FGrid_c); convertLayout(CoarseVecUpstream, CoarseVecTwospinFast);
     // clang-format on
 
-    double flop = FVolume * (8 * (nBasis - 1) + 6) * FSiteElems;
-    double byte = FVolume * ((1 * 1 + 3 * FSiteElems) * (nBasis - 1) + (1 * 1 + 2 * FSiteElems) * 1) * sizeof(Complex);
+    double flop = FVolume_f * (8 * (nBasis - 1) + 6) * siteElems_f;
+    double byte = FVolume_f * ((1 * 1 + 3 * siteElems_f) * (nBasis - 1) + (1 * 1 + 2 * siteElems_f) * 1) * sizeof(Complex);
 
     BenchmarkFunction(UpstreamAggs.PromoteFromSubspace,           flop, byte, nIterMin, nSecMin, CoarseVecUpstream,           FineVecUpstream);
     BenchmarkFunction(BaselineAggs.PromoteFromSubspace,           flop, byte, nIterMin, nSecMin, CoarseVecBaseline,           FineVecBaseline);
@@ -261,7 +270,7 @@ int main(int argc, char** argv) {
     std::cout << GridLogMessage << "Running benchmark for Orthogonalise" << std::endl;
     std::cout << GridLogMessage << "***************************************************************************" << std::endl;
 
-    UpstreamAggs.CreateSubspaceRandom(FPRNG);
+    UpstreamAggs.CreateSubspaceRandom(FPRNG_f);
     for(int i=0; i<TwoSpinAggsSlow.Subspace().size(); ++i) {
       TwoSpinAggsSlow.Subspace()[i] = UpstreamAggs.subspace[i];
       TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
@@ -272,29 +281,29 @@ int main(int argc, char** argv) {
       ImprovedDirsaveLutAggs.subspace[i] = UpstreamAggs.subspace[i];
     }
 
-    double flopLocalInnerProduct = FVolume * (8 * FSiteElems - 2);
-    double byteLocalInnerProduct = FVolume * (2 * FSiteElems + 1 * 1) * sizeof(Complex);
+    double flopLocalInnerProduct = FVolume_f * (8 * siteElems_f - 2);
+    double byteLocalInnerProduct = FVolume_f * (2 * siteElems_f + 1 * 1) * sizeof(Complex);
 
-    double flopBlockSum = FVolume * (2 * 1);
-    double byteBlockSum = FVolume * (2 * 1 + 1 * 1) * sizeof(Complex);
+    double flopBlockSum = FVolume_f * (2 * 1);
+    double byteBlockSum = FVolume_f * (2 * 1 + 1 * 1) * sizeof(Complex);
 
-    double flopCopy = CVolume * 0;
-    double byteCopy = CVolume * (2 * 1) * sizeof(Complex);
+    double flopCopy = FVolume_c * 0;
+    double byteCopy = FVolume_c * (2 * 1) * sizeof(Complex);
 
     double flopBlockInnerProduct = flopLocalInnerProduct + flopBlockSum + flopCopy;
     double byteBlockInnerProduct = byteLocalInnerProduct + byteBlockSum + byteCopy;
 
-    double flopPow = CVolume * (1); // TODO: Put in actual value instead of 1
-    double bytePow = CVolume * (2 * 1) * sizeof(Complex);
+    double flopPow = FVolume_c * (1); // TODO: Put in actual value instead of 1
+    double bytePow = FVolume_c * (2 * 1) * sizeof(Complex);
 
-    double flopBlockZAXPY = FVolume * (8 * FSiteElems);
-    double byteBlockZAXPY = FVolume * (3 * FSiteElems + 1 * 1) * sizeof(Complex);
+    double flopBlockZAXPY = FVolume_f * (8 * siteElems_f);
+    double byteBlockZAXPY = FVolume_f * (3 * siteElems_f + 1 * 1) * sizeof(Complex);
 
     double flopBlockNormalise = flopBlockInnerProduct + flopPow + flopBlockZAXPY;
     double byteBlockNormalise = byteBlockInnerProduct + bytePow + byteBlockZAXPY;
 
-    double flopMinus = CVolume * (6 * 1) * sizeof(Complex);
-    double byteMinus = CVolume * (2 * 1) * sizeof(Complex);
+    double flopMinus = FVolume_c * (6 * 1) * sizeof(Complex);
+    double byteMinus = FVolume_c * (2 * 1) * sizeof(Complex);
 
     double flop = flopBlockNormalise * nBasis + (flopBlockInnerProduct + flopMinus + flopBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
     double byte = byteBlockNormalise * nBasis + (byteBlockInnerProduct + byteMinus + byteBlockZAXPY) * nBasis * (nBasis - 1) / 2.;
