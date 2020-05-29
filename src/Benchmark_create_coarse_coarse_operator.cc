@@ -217,10 +217,8 @@ int main(int argc, char** argv) {
   UpstreamCoarsenedMatrix UpstreamCMat(*FGrid_c, isHermitian);
   for(int p : {4, 5, 6, 7, 8}) // randomize only self and backwards links to have correct relation between forward and backward
     random(FPRNG_c, UpstreamCMat.A[p]);
-  if(isHermitian)
-    UpstreamCMat.ForceHermitian();
-  else
-    UpstreamCMat.ConstructRemainingLinks();
+  if(isHermitian) UpstreamCMat.ForceHermitian();
+  else            UpstreamCMat.ConstructRemainingLinks();
 
   MdagMLinearOperator<UpstreamCoarsenedMatrix, UpstreamCoarseVector> LinOp(UpstreamCMat);
 
@@ -229,13 +227,11 @@ int main(int argc, char** argv) {
   GridCartesian*         FGrid_cc_5d   = SpaceTimeGrid::makeFiveDimGrid(nParSetupVecs, FGrid_cc);
   GridRedBlackCartesian* FrbGrid_cc_5d = SpaceTimeGrid::makeFiveDimRedBlackGrid(nParSetupVecs, FGrid_cc);
 
-  // WilsonMRHSFermionR       Dw5(Umu, *FGrid_c_5d, *FrbGrid_c_5d, *FGrid_c, *FrbGrid_c, mass);
-  // WilsonCloverMRHSFermionR Dwc5(Umu, *FGrid_c_5d, *FrbGrid_c_5d, *FGrid_c, *FrbGrid_c, mass, csw, csw);
+  ImprovedDirsaveLutMRHSCoarsenedMatrix ImprovedDirsaveLutMRHSCMat(*FGrid_c_5d, *FGrid_c, *FGrid_c_5d, *FGrid_c, isHermitian);
+  for(int p=0; p<UpstreamCMat.geom.npoint; p++)
+    ImprovedDirsaveLutMRHSCMat.A[p] = UpstreamCMat.A[p];
 
-  // MdagMLinearOperator<WilsonMRHSFermionR, LatticeFermion> LinOpDw5(Dw5);
-  // MdagMLinearOperator<WilsonMRHSFermionR, LatticeFermion> LinOpDwc5(Dwc5);
-
-  // MdagMLinearOperator<WilsonMRHSFermionR, LatticeFermion>* LinOp5;
+  MdagMLinearOperator<ImprovedDirsaveLutMRHSCoarsenedMatrix, UpstreamCoarseVector> LinOp5(ImprovedDirsaveLutMRHSCMat);
 
   /////////////////////////////////////////////////////////////////////////////
   //                           Setup of Aggregation                          //
@@ -370,20 +366,20 @@ int main(int argc, char** argv) {
 
       // My improvements to upstream with MRHS //////////////////////////////////
 
-      // else if(elem == "ImprovedDirsaveLutMRHS") {
-      //   ImprovedDirsaveLutMRHSCoarseAggregation ImprovedDirsaveLutMRHSCoarseAggs(FGrid_cc, FGrid_c, cb);
-      //   ImprovedDirsaveLutMRHSCoarseCoarsenedMatrix ImprovedDirsaveLutMRHSCoarseCMat(*FGrid_c_5d, *FGrid_c, *FGrid_cc_5d, *FGrid_cc, isHermitian);
-      //   for(int i = 0; i < UpstreamCoarseAggs.subspace.size(); ++i) ImprovedDirsaveLutMRHSCoarseAggs.subspace[i] = UpstreamCoarseAggs.subspace[i];
+      else if(elem == "ImprovedDirsaveLutMRHS") {
+        ImprovedDirsaveLutMRHSCoarseAggregation ImprovedDirsaveLutMRHSCoarseAggs(FGrid_cc, FGrid_c, cb);
+        ImprovedDirsaveLutMRHSCoarseCoarsenedMatrix ImprovedDirsaveLutMRHSCoarseCMat(*FGrid_c_5d, *FGrid_c, *FGrid_cc_5d, *FGrid_cc, isHermitian);
+        for(int i = 0; i < UpstreamCoarseAggs.subspace.size(); ++i) ImprovedDirsaveLutMRHSCoarseAggs.subspace[i] = UpstreamCoarseAggs.subspace[i];
 
-      //   BenchmarkFunction(ImprovedDirsaveLutMRHSCoarseCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid_c_5d, LinOp5, ImprovedDirsaveLutMRHSCoarseAggs);
-      //   profResults = ImprovedDirsaveLutMRHSCoarseCMat.GetProfile(); ImprovedDirsaveLutMRHSCoarseCMat.ResetProfile();
-      //   prettyPrintProfiling("ImprovedDirsaveLutMRHS", profResults, profResults["CoarsenOperator.Total"].t, false);
+        BenchmarkFunction(ImprovedDirsaveLutMRHSCoarseCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid_c_5d, LinOp5, ImprovedDirsaveLutMRHSCoarseAggs);
+        profResults = ImprovedDirsaveLutMRHSCoarseCMat.GetProfile(); ImprovedDirsaveLutMRHSCoarseCMat.ResetProfile();
+        prettyPrintProfiling("ImprovedDirsaveLutMRHS", profResults, profResults["CoarsenOperator.Total"].t, false);
 
-      //   std::cout << GridLogMessage << "Deviations of ImprovedDirsaveLutMRHS from Upstream" << std::endl;
-      //   for(int p = 0; p < UpstreamCoarseCMat.geom.npoint; ++p) {
-      //     assertResultMatchesReference(tol, UpstreamCoarseCMat.A[p], ImprovedDirsaveLutMRHSCoarseCMat.A[p]);
-      //   }
-      // }
+        std::cout << GridLogMessage << "Deviations of ImprovedDirsaveLutMRHS from Upstream" << std::endl;
+        for(int p = 0; p < UpstreamCoarseCMat.geom.npoint; ++p) {
+          assertResultMatchesReference(tol, UpstreamCoarseCMat.A[p], ImprovedDirsaveLutMRHSCoarseCMat.A[p]);
+        }
+      }
 
       // Twospin layout speedlevel 0, slow projects /////////////////////////////
 

@@ -724,7 +724,9 @@ public:
   Rework::CoarseningLookupTable ilut;
   std::vector<Rework::CoarseningLookupTable> olut;
 
-  CartesianStencil<siteVector,siteVector,int> Stencil; 
+  CartesianStencil<siteVector,siteVector,int>  Stencil_4d;
+  CartesianStencil<siteVector,siteVector,int>  Stencil_5d;
+  CartesianStencil<siteVector,siteVector,int>* Stencil;
 
   std::vector<CoarseMatrix> A;
       
@@ -735,13 +737,18 @@ public:
 
   void M (const CoarseVector &in, CoarseVector &out)
   {
-    conformable(_CoarseFourDimGrid,in.Grid());
     conformable(in.Grid(),out.Grid());
+
+    Stencil = getCorrectStencil(in.Grid());
+
+    int LLs = 1;
+    if(in.Grid()->_ndimension == _CoarseFiveDimGrid->_ndimension)
+      LLs = Ls;
 
     SimpleCompressor<siteVector> compressor;
 
     double comms_usec = -usecond();
-    Stencil.HaloExchange(in,compressor);
+    Stencil->HaloExchange(in,compressor);
     comms_usec += usecond();
 
     auto in_v = in.View();
@@ -766,11 +773,12 @@ public:
     // - https://docs.nvidia.com/cuda/cuda-c-programming-guide/#star-this-capture
     // - https://devblogs.nvidia.com/new-compiler-features-cuda-8/
     auto& geom_    = geom;
-    auto& Stencil_ = Stencil;
 
-    accelerator_for(sss, Grid()->oSites()*nbasis, Nsimd, {
-      int ss = sss/nbasis;
-      int b  = sss%nbasis;
+    accelerator_for(sFb, in.Grid()->oSites()*nbasis, Nsimd, {
+      int sF = sFb/nbasis;
+      int b  = sFb%nbasis;
+      int sU = sF/LLs;
+
       calcComplex res = Zero();
       calcVector nbr;
       int ptype;
@@ -779,20 +787,20 @@ public:
       int lane=SIMTlane(Nsimd);
       for(int point=0;point<geom_.npoint;point++){
 
-	SE=Stencil_.GetEntry(ptype,point,ss);
+	SE=Stencil->GetEntry(ptype,point,sF);
 	  
 	if(SE->_is_local) { 
 	  nbr = coalescedReadPermute(in_v[SE->_offset],ptype,SE->_permute,lane);
 	} else {
-	  nbr = coalescedRead(Stencil_.CommBuf()[SE->_offset],lane);
+	  nbr = coalescedRead(Stencil->CommBuf()[SE->_offset],lane);
 	}
 	synchronise();
 
 	for(int bb=0;bb<nbasis;bb++) {
-	  res = res + coalescedRead(Aview_p[point][ss](b,bb))*nbr(bb);
+	  res = res + coalescedRead(Aview_p[point][sU](b,bb))*nbr(bb);
 	}
       }
-      coalescedWrite(out_v[ss](b),res,lane);
+      coalescedWrite(out_v[sF](b),res,lane);
     });
     usecs +=usecond();
 
@@ -819,13 +827,19 @@ public:
   };
   void MdirComms(const CoarseVector &in)
   {
+    Stencil = getCorrectStencil(in.Grid());
     SimpleCompressor<siteVector> compressor;
-    Stencil.HaloExchange(in,compressor);
+    Stencil->HaloExchange(in,compressor);
   }
   void MdirCalc(const CoarseVector &in, CoarseVector &out, int point)
   {
-    conformable(_CoarseFourDimGrid,in.Grid());
-    conformable(_CoarseFourDimGrid,out.Grid());
+    conformable(in.Grid(),out.Grid());
+
+    Stencil = getCorrectStencil(in.Grid());
+
+    int LLs = 1;
+    if(in.Grid()->_ndimension == _CoarseFiveDimGrid->_ndimension)
+      LLs = Ls;
 
     typedef LatticeView<Cobj> Aview;
     Vector<Aview> AcceleratorViewContainer;
@@ -839,34 +853,30 @@ public:
     typedef decltype(coalescedRead(in_v[0])) calcVector;
     typedef decltype(coalescedRead(in_v[0](0))) calcComplex;
 
-    // need to take references, otherwise we get illegal memory accesses
-    // happens since the lambda copies the this pointer which points to host memory, see
-    // - https://docs.nvidia.com/cuda/cuda-c-programming-guide/#star-this-capture
-    // - https://devblogs.nvidia.com/new-compiler-features-cuda-8/
-    auto& Stencil_ = Stencil;
+    accelerator_for(sFb, in.Grid()->oSites()*nbasis, Nsimd, {
+      int sF = sFb/nbasis;
+      int b  = sFb%nbasis;
+      int sU = sF/LLs;
 
-    accelerator_for(sss, Grid()->oSites()*nbasis, Nsimd, {
-      int ss = sss/nbasis;
-      int b  = sss%nbasis;
       calcComplex res = Zero();
       calcVector nbr;
       int ptype;
       StencilEntry *SE;
 
       int lane=SIMTlane(Nsimd);
-      SE=Stencil_.GetEntry(ptype,point,ss);
+      SE=Stencil->GetEntry(ptype,point,sF);
 	  
       if(SE->_is_local) { 
 	nbr = coalescedReadPermute(in_v[SE->_offset],ptype,SE->_permute,lane);
       } else {
-	nbr = coalescedRead(Stencil_.CommBuf()[SE->_offset],lane);
+	nbr = coalescedRead(Stencil->CommBuf()[SE->_offset],lane);
       }
       synchronise();
 
       for(int bb=0;bb<nbasis;bb++) {
-	res = res + coalescedRead(Aview_p[point][ss](b,bb))*nbr(bb);
+	res = res + coalescedRead(Aview_p[point][sU](b,bb))*nbr(bb);
       }
-      coalescedWrite(out_v[ss](b),res,lane);
+      coalescedWrite(out_v[sF](b),res,lane);
     });
 #if 0
     accelerator_for(ss,Grid()->oSites(),1,{
@@ -876,14 +886,14 @@ public:
       int ptype;
       StencilEntry *SE;
       
-      SE=Stencil_.GetEntry(ptype,point,ss);
+      SE=Stencil->GetEntry(ptype,point,ss);
       
       if(SE->_is_local&&SE->_permute) {
 	permute(nbr,in_v[SE->_offset],ptype);
       } else if(SE->_is_local) {
 	nbr = in_v[SE->_offset];
       } else {
-	nbr = Stencil_.CommBuf()[SE->_offset];
+	nbr = Stencil->CommBuf()[SE->_offset];
       }
       synchronise();
 
@@ -946,95 +956,6 @@ public:
     MdirCalc(in, out, point); // No comms
   };
 
-  void assertGridsCorrect() {
-    // correct dimensionality
-    assert(_FineFiveDimGrid->_ndimension == 5);
-    assert(_FineFourDimGrid->_ndimension == 4);
-    assert(_CoarseFiveDimGrid->_ndimension == 5);
-    assert(_CoarseFourDimGrid->_ndimension == 4);
-
-    // 5th dimension strictly local
-    assert(_FineFiveDimGrid->_processors[0] == 1);
-    assert(_CoarseFiveDimGrid->_processors[0] == 1);
-    assert(_FineFiveDimGrid->_fdimensions[0] == _FineFiveDimGrid->_rdimensions[0]);
-    assert(_CoarseFiveDimGrid->_fdimensions[0] == _CoarseFiveDimGrid->_rdimensions[0]);
-
-    // same extent in 5th dimension
-    assert(_FineFiveDimGrid->_fdimensions[0] == _CoarseFiveDimGrid->_fdimensions[0]);
-    assert(_FineFiveDimGrid->_rdimensions[0] == _CoarseFiveDimGrid->_rdimensions[0]);
-
-    // rest of 5d must fit together with 4d
-    for(int d=0;d<4;d++){
-      assert(_FineFiveDimGrid->_processors[d+1]  == _FineFourDimGrid->_processors[d]);
-      assert(_FineFiveDimGrid->_fdimensions[d+1] == _FineFourDimGrid->_fdimensions[d]);
-      assert(_FineFiveDimGrid->_simd_layout[d+1] == _FineFourDimGrid->_simd_layout[d]);
-
-      assert(_CoarseFiveDimGrid->_processors[d+1]  == _CoarseFourDimGrid->_processors[d]);
-      assert(_CoarseFiveDimGrid->_fdimensions[d+1] == _CoarseFourDimGrid->_fdimensions[d]);
-      assert(_CoarseFiveDimGrid->_simd_layout[d+1] == _CoarseFourDimGrid->_simd_layout[d]);
-    }
-
-    // cleanly divide, no remainder loops
-    assert(nbasis%Ls == 0);
-  }
-
-  void setupMasks() {
-    typedef typename Fobj::scalar_type scalar_type;
-
-    FineComplexField omask(_FineFourDimGrid);
-    FineComplexField one4(_FineFourDimGrid); one4=scalar_type(1.0,0.0);
-    FineComplexField zero4(_FineFourDimGrid); zero4=scalar_type(0.0,0.0);
-
-    FineComplexField one5(_FineFiveDimGrid); one5=scalar_type(1.0,0.0);
-    FineComplexField zero5(_FineFiveDimGrid); zero5=scalar_type(0.0,0.0);
-
-    Lattice<iScalar<vInteger> > coor4 (_FineFourDimGrid);
-    Lattice<iScalar<vInteger> > coor5 (_FineFiveDimGrid);
-    Lattice<iScalar<vInteger> > bcb  (_FineFiveDimGrid); bcb = Zero();
-
-    // Compute the matrix elements of linop between this orthonormal
-    // set of vectors.
-    for(int p=0;p<geom5d.npoint;p++)
-    {
-      int dir4   = geom.directions[p];
-      int disp4  = geom.displacements[p];
-      int dir5   = geom5d.directions[p];
-      int disp5  = geom5d.displacements[p];
-      std::cout << "p = " << p << " dir4 = " << dir4 << " disp4 = " << disp4
-                << " dir5 = " << dir5 << " disp5 = " << disp5 << std::endl;
-      A[p]=Zero();
-      if( geom.displacements[p]==0){
-	self_stencil=p;
-      }
-
-      Integer block=(_FineFourDimGrid->_rdimensions[dir4])/(_CoarseFourDimGrid->_rdimensions[dir4]);
-
-      LatticeCoordinate(coor4,dir4);
-      LatticeCoordinate(coor5,dir5);
-
-      ///////////////////////////////////////////////////////
-      // Work out even and odd block checkerboarding for fast diagonal term
-      ///////////////////////////////////////////////////////
-      if ( disp4==1 ) {
-        bcb   = bcb + div(coor5,block);
-      }
-
-      if ( disp4==0 ) {
-	  omask= Zero();
-      } else if ( disp4==1 ) {
-	omask = where(mod(coor4,block)==(block-1),one4,zero4);
-      } else if ( disp4==-1 ) {
-	omask = where(mod(coor4,block)==(Integer)0,one4,zero4);
-      }
-
-      olut[p].populate(_CoarseFourDimGrid, omask);
-    }
-    evenmask = where(mod(bcb,2)==(Integer)0,one5,zero5);
-    oddmask  = one5-evenmask;
-
-    assert(self_stencil!=-1);
-  }
-
   CoarsenedMatrix(GridCartesian &FineFiveDimGrid,
                   GridCartesian &FineFourDimGrid,
                   GridCartesian &CoarseFiveDimGrid,
@@ -1053,46 +974,13 @@ public:
     , oddmask(_FineFiveDimGrid)
     , ilut(_CoarseFourDimGrid, _FineFourDimGrid)
     , olut(geom.npoint)
-    , Stencil(_CoarseFourDimGrid, geom.npoint, Even, geom.directions, geom.displacements, 0)
+    , Stencil_4d(_CoarseFourDimGrid, geom.npoint, Even, geom.directions, geom.displacements, 0)
+    , Stencil_5d(_CoarseFiveDimGrid, geom5d.npoint, Even, geom5d.directions, geom5d.displacements, 0)
+    , Stencil(nullptr)
     , A(geom.npoint,_CoarseFourDimGrid)
   {
     assertGridsCorrect();
     setupMasks();
-  }
-
-  template<class Field>
-  void convert4dVecTo5dMRHS(std::vector<Field> const& in_4d, Field& out_5d) {
-    GridBase* grid_4d = in_4d[0].Grid();
-    GridBase* grid_5d = out_5d.Grid();
-
-    const int nRHS = grid_5d->_rdimensions[0];
-    assert(in_4d.size() == nRHS);
-
-    auto  out_5d_v       = out_5d.View();
-    auto  in_4d_vc = getViewContainer(in_4d);
-    auto* in_4d_vp = &in_4d_vc[0];
-    accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
-      auto sU  = sF/nRHS;
-      auto rhs = sF%nRHS;
-      coalescedWrite(out_5d_v[sF],in_4d_vp[rhs](sU));
-    });
-  }
-  template<class Field>
-  void convert5dMRHSTo4dVec(Field const& in_5d, std::vector<Field>& out_4d) {
-    GridBase* grid_4d = out_4d[0].Grid();
-    GridBase* grid_5d = in_5d.Grid();
-
-    const int nRHS = grid_5d->_rdimensions[0];
-    assert(out_4d.size() == nRHS);
-
-    auto  in_5d_v       = in_5d.View();
-    auto  out_4d_vc = getViewContainer(out_4d);
-    auto* out_4d_vp = &out_4d_vc[0];
-    accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
-      auto sU  = sF/nRHS;
-      auto rhs = sF%nRHS;
-      coalescedWrite(out_4d_vp[rhs][sU],in_5d_v(sF));
-    });
   }
 
   void CoarsenOperator(GridCartesian *FineGrid,LinearOperatorBase<Lattice<Fobj> > &linop,
@@ -1319,6 +1207,146 @@ public:
       }
     }
     prof_.Stop("CoarsenOperator.ConstructLinksComm");
+  }
+
+private:
+  void assertGridsCorrect() {
+    // correct dimensionality
+    assert(_FineFiveDimGrid->_ndimension == 5);
+    assert(_FineFourDimGrid->_ndimension == 4);
+    assert(_CoarseFiveDimGrid->_ndimension == 5);
+    assert(_CoarseFourDimGrid->_ndimension == 4);
+
+    // 5th dimension strictly local
+    assert(_FineFiveDimGrid->_processors[0] == 1);
+    assert(_CoarseFiveDimGrid->_processors[0] == 1);
+    assert(_FineFiveDimGrid->_fdimensions[0] == _FineFiveDimGrid->_rdimensions[0]);
+    assert(_CoarseFiveDimGrid->_fdimensions[0] == _CoarseFiveDimGrid->_rdimensions[0]);
+
+    // same extent in 5th dimension
+    assert(_FineFiveDimGrid->_fdimensions[0] == _CoarseFiveDimGrid->_fdimensions[0]);
+    assert(_FineFiveDimGrid->_rdimensions[0] == _CoarseFiveDimGrid->_rdimensions[0]);
+
+    // rest of 5d must fit together with 4d
+    for(int d=0;d<4;d++){
+      assert(_FineFiveDimGrid->_processors[d+1]  == _FineFourDimGrid->_processors[d]);
+      assert(_FineFiveDimGrid->_fdimensions[d+1] == _FineFourDimGrid->_fdimensions[d]);
+      assert(_FineFiveDimGrid->_simd_layout[d+1] == _FineFourDimGrid->_simd_layout[d]);
+
+      assert(_CoarseFiveDimGrid->_processors[d+1]  == _CoarseFourDimGrid->_processors[d]);
+      assert(_CoarseFiveDimGrid->_fdimensions[d+1] == _CoarseFourDimGrid->_fdimensions[d]);
+      assert(_CoarseFiveDimGrid->_simd_layout[d+1] == _CoarseFourDimGrid->_simd_layout[d]);
+    }
+
+    // cleanly divide, no remainder loops
+    assert(nbasis%Ls == 0);
+  }
+
+  void setupMasks() {
+    typedef typename Fobj::scalar_type scalar_type;
+
+    FineComplexField omask(_FineFourDimGrid);
+    FineComplexField one4(_FineFourDimGrid); one4=scalar_type(1.0,0.0);
+    FineComplexField zero4(_FineFourDimGrid); zero4=scalar_type(0.0,0.0);
+
+    FineComplexField one5(_FineFiveDimGrid); one5=scalar_type(1.0,0.0);
+    FineComplexField zero5(_FineFiveDimGrid); zero5=scalar_type(0.0,0.0);
+
+    Lattice<iScalar<vInteger> > coor4 (_FineFourDimGrid);
+    Lattice<iScalar<vInteger> > coor5 (_FineFiveDimGrid);
+    Lattice<iScalar<vInteger> > bcb  (_FineFiveDimGrid); bcb = Zero();
+
+    // Compute the matrix elements of linop between this orthonormal
+    // set of vectors.
+    for(int p=0;p<geom5d.npoint;p++)
+    {
+      int dir4   = geom.directions[p];
+      int disp4  = geom.displacements[p];
+      int dir5   = geom5d.directions[p];
+      int disp5  = geom5d.displacements[p];
+      std::cout << "p = " << p << " dir4 = " << dir4 << " disp4 = " << disp4
+                << " dir5 = " << dir5 << " disp5 = " << disp5 << std::endl;
+      A[p]=Zero();
+      if( geom.displacements[p]==0){
+	self_stencil=p;
+      }
+
+      Integer block=(_FineFourDimGrid->_rdimensions[dir4])/(_CoarseFourDimGrid->_rdimensions[dir4]);
+
+      LatticeCoordinate(coor4,dir4);
+      LatticeCoordinate(coor5,dir5);
+
+      ///////////////////////////////////////////////////////
+      // Work out even and odd block checkerboarding for fast diagonal term
+      ///////////////////////////////////////////////////////
+      if ( disp4==1 ) {
+        bcb   = bcb + div(coor5,block);
+      }
+
+      if ( disp4==0 ) {
+	  omask= Zero();
+      } else if ( disp4==1 ) {
+	omask = where(mod(coor4,block)==(block-1),one4,zero4);
+      } else if ( disp4==-1 ) {
+	omask = where(mod(coor4,block)==(Integer)0,one4,zero4);
+      }
+
+      olut[p].populate(_CoarseFourDimGrid, omask);
+    }
+    evenmask = where(mod(bcb,2)==(Integer)0,one5,zero5);
+    oddmask  = one5-evenmask;
+
+    assert(self_stencil!=-1);
+  }
+
+
+  CartesianStencil<siteVector,siteVector,int>* getCorrectStencil(GridBase* grid) {
+    if(grid->_ndimension == _CoarseFourDimGrid->_ndimension) {
+      conformable(_CoarseFourDimGrid,grid);
+      return &Stencil_4d;
+    } else if(grid->_ndimension == _CoarseFiveDimGrid->_ndimension) {
+      conformable(_CoarseFiveDimGrid,grid);
+      return &Stencil_5d;
+    } else {
+      assert(grid->_ndimension == _CoarseFourDimGrid->_ndimension ||
+             grid->_ndimension == _CoarseFiveDimGrid->_ndimension);
+      return nullptr;
+    }
+  }
+
+  template<class Field>
+  void convert4dVecTo5dMRHS(std::vector<Field> const& in_4d, Field& out_5d) {
+    GridBase* grid_4d = in_4d[0].Grid();
+    GridBase* grid_5d = out_5d.Grid();
+
+    const int nRHS = grid_5d->_rdimensions[0];
+    assert(in_4d.size() == nRHS);
+
+    auto  out_5d_v       = out_5d.View();
+    auto  in_4d_vc = getViewContainer(in_4d);
+    auto* in_4d_vp = &in_4d_vc[0];
+    accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
+      auto sU  = sF/nRHS;
+      auto rhs = sF%nRHS;
+      coalescedWrite(out_5d_v[sF],in_4d_vp[rhs](sU));
+    });
+  }
+  template<class Field>
+  void convert5dMRHSTo4dVec(Field const& in_5d, std::vector<Field>& out_4d) {
+    GridBase* grid_4d = out_4d[0].Grid();
+    GridBase* grid_5d = in_5d.Grid();
+
+    const int nRHS = grid_5d->_rdimensions[0];
+    assert(out_4d.size() == nRHS);
+
+    auto  in_5d_v       = in_5d.View();
+    auto  out_4d_vc = getViewContainer(out_4d);
+    auto* out_4d_vp = &out_4d_vc[0];
+    accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
+      auto sU  = sF/nRHS;
+      auto rhs = sF%nRHS;
+      coalescedWrite(out_4d_vp[rhs][sU],in_5d_v(sF));
+    });
   }
 
 };
