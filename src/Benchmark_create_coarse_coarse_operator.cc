@@ -244,7 +244,7 @@ int main(int argc, char** argv) {
   UpstreamCoarseAggregation UpstreamCoarseAggs(FGrid_cc, FGrid_c, cb);
 
   UpstreamCoarseAggs.CreateSubspaceRandom(FPRNG_c);
-  performChiralDoubling(UpstreamCoarseAggs.subspace);
+  performChiralDoublingG5C(UpstreamCoarseAggs.subspace);
   UpstreamCoarseAggs.Orthogonalise(checkOrthog, gsPasses);
 
   /////////////////////////////////////////////////////////////////////////////
@@ -390,9 +390,9 @@ int main(int argc, char** argv) {
       // else if(elem == "Speed0SlowProj") {
       //   TwoSpinCoarseAggregation TwoSpinCoarseAggs(FGrid_cc, FGrid_c, cb, 0); // 0 = don't use fast projects
       //   TwoSpinCoarseCoarsenedMatrix TwoSpinCoarseCMat(*FGrid_cc, *FrbGrid_cc, 0, isHermitian); // speedLevel = 0
-      //   undoChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   undoChiralDoublingG5C(UpstreamCoarseAggs.subspace);
       //   for(int i = 0; i < TwoSpinCoarseAggs.Subspace().size(); ++i) TwoSpinCoarseAggs.Subspace()[i] = UpstreamCoarseAggs.subspace[i];
-      //   performChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   performChiralDoublingG5C(UpstreamCoarseAggs.subspace);
 
       //   BenchmarkFunction(TwoSpinCoarseCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid_c, LinOp, TwoSpinCoarseAggs);
       //   profResults = TwoSpinCoarseCMat.GetProfile(); TwoSpinCoarseCMat.ResetProfile();
@@ -409,9 +409,9 @@ int main(int argc, char** argv) {
       // else if(elem == "Speed0FastProj") {
       //   TwoSpinCoarseAggregation TwoSpinCoarseAggs(FGrid_cc, FGrid_c, cb, 1); // 1 = use fast projects
       //   TwoSpinCoarseCoarsenedMatrix TwoSpinCoarseCMat(*FGrid_cc, *FrbGrid_cc, 0, isHermitian); // speedLevel = 0
-      //   undoChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   undoChiralDoublingG5C(UpstreamCoarseAggs.subspace);
       //   for(int i = 0; i < TwoSpinCoarseAggs.Subspace().size(); ++i) TwoSpinCoarseAggs.Subspace()[i] = UpstreamCoarseAggs.subspace[i];
-      //   performChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   performChiralDoublingG5C(UpstreamCoarseAggs.subspace);
 
       //   BenchmarkFunction(TwoSpinCoarseCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid_c, LinOp, TwoSpinCoarseAggs);
       //   profResults = TwoSpinCoarseCMat.GetProfile(); TwoSpinCoarseCMat.ResetProfile();
@@ -428,9 +428,9 @@ int main(int argc, char** argv) {
       // else if(elem == "Speed1SlowProj") {
       //   TwoSpinCoarseAggregation TwoSpinCoarseAggs(FGrid_cc, FGrid_c, cb, 0); // 0 = don't use fast projects
       //   TwoSpinCoarseCoarsenedMatrix TwoSpinCoarseCMat(*FGrid_cc, *FrbGrid_cc, 1, isHermitian); // speedLevel = 1
-      //   undoChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   undoChiralDoublingG5C(UpstreamCoarseAggs.subspace);
       //   for(int i = 0; i < TwoSpinCoarseAggs.Subspace().size(); ++i) TwoSpinCoarseAggs.Subspace()[i] = UpstreamCoarseAggs.subspace[i];
-      //   performChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   performChiralDoublingG5C(UpstreamCoarseAggs.subspace);
 
       //   BenchmarkFunction(TwoSpinCoarseCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid_c, LinOp, TwoSpinCoarseAggs);
       //   profResults = TwoSpinCoarseCMat.GetProfile(); TwoSpinCoarseCMat.ResetProfile();
@@ -447,9 +447,9 @@ int main(int argc, char** argv) {
       // else if(elem == "Speed1FastProj") {
       //   TwoSpinCoarseAggregation TwoSpinCoarseAggs(FGrid_cc, FGrid_c, cb, 1); // 1 = use fast projects
       //   TwoSpinCoarseCoarsenedMatrix TwoSpinCoarseCMat(*FGrid_cc, *FrbGrid_cc, 1, isHermitian); // speedLevel = 1
-      //   undoChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   undoChiralDoublingG5C(UpstreamCoarseAggs.subspace);
       //   for(int i = 0; i < TwoSpinCoarseAggs.Subspace().size(); ++i) TwoSpinCoarseAggs.Subspace()[i] = UpstreamCoarseAggs.subspace[i];
-      //   performChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   performChiralDoublingG5C(UpstreamCoarseAggs.subspace);
 
       //   BenchmarkFunction(TwoSpinCoarseCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid_c, LinOp, TwoSpinCoarseAggs);
       //   profResults = TwoSpinCoarseCMat.GetProfile(); TwoSpinCoarseCMat.ResetProfile();
@@ -466,9 +466,9 @@ int main(int argc, char** argv) {
       // else if(elem == "Speed2SlowProj") {
       //   TwoSpinCoarseAggregation TwoSpinCoarseAggs(FGrid_cc, FGrid_c, cb, 0); // 0 = don't use fast projects
       //   TwoSpinCoarseCoarsenedMatrix TwoSpinCoarseCMat(*FGrid_cc, *FrbGrid_cc, 2, isHermitian); // speedLevel = 2
-      //   undoChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   undoChiralDoublingG5C(UpstreamCoarseAggs.subspace);
       //   for(int i = 0; i < TwoSpinCoarseAggs.Subspace().size(); ++i) TwoSpinCoarseAggs.Subspace()[i] = UpstreamCoarseAggs.subspace[i];
-      //   performChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   performChiralDoublingG5C(UpstreamCoarseAggs.subspace);
 
       //   BenchmarkFunction(TwoSpinCoarseCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid_c, LinOp, TwoSpinCoarseAggs);
       //   profResults = TwoSpinCoarseCMat.GetProfile(); TwoSpinCoarseCMat.ResetProfile();
@@ -485,9 +485,9 @@ int main(int argc, char** argv) {
       // else if(elem == "Speed2FastProj") {
       //   TwoSpinCoarseAggregation TwoSpinCoarseAggs(FGrid_cc, FGrid_c, cb, 1); // 1 = use fast projects
       //   TwoSpinCoarseCoarsenedMatrix TwoSpinCoarseCMat(*FGrid_cc, *FrbGrid_cc, 2, isHermitian); // speedLevel = 2
-      //   undoChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   undoChiralDoublingG5C(UpstreamCoarseAggs.subspace);
       //   for(int i = 0; i < TwoSpinCoarseAggs.Subspace().size(); ++i) TwoSpinCoarseAggs.Subspace()[i] = UpstreamCoarseAggs.subspace[i];
-      //   performChiralDoubling(UpstreamCoarseAggs.subspace);
+      //   performChiralDoublingG5C(UpstreamCoarseAggs.subspace);
 
       //   BenchmarkFunction(TwoSpinCoarseCMat.CoarsenOperator, flop, byte, nIterOnce, nSecOnce, FGrid_c, LinOp, TwoSpinCoarseAggs);
       //   profResults = TwoSpinCoarseCMat.GetProfile(); TwoSpinCoarseCMat.ResetProfile();

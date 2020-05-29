@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
 #else
   Aggregates Aggs(CGrid, FGrid, 0);
   Aggs.CreateSubspaceRandom(FPRNG);
-  performChiralDoubling(Aggs.subspace);
+  performChiralDoublingG5C(Aggs.subspace);
   Aggs.Orthogonalise(1, 1); // check orthogonality, 1 pass of GS
 #endif
 

@@ -169,7 +169,8 @@ int main(int argc, char** argv) {
   for(int i = 0; i < TwoSpinAggsFast.Subspace().size(); ++i)
     TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
 
-  performChiralDoubling(UpstreamAggs.subspace);
+  if(Ls != 1) performChiralDoublingG5R5(UpstreamAggs.subspace);
+  else        performChiralDoublingG5C(UpstreamAggs.subspace);
   UpstreamAggs.Orthogonalise(checkOrthog, 1); // 1 gs pass
 
   for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) {
@@ -275,7 +276,8 @@ int main(int argc, char** argv) {
       TwoSpinAggsSlow.Subspace()[i] = UpstreamAggs.subspace[i];
       TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
     }
-    performChiralDoubling(UpstreamAggs.subspace);
+    if(Ls != 1) performChiralDoublingG5R5(UpstreamAggs.subspace);
+    else        performChiralDoublingG5C(UpstreamAggs.subspace);
     for(int i = 0; i < UpstreamAggs.subspace.size(); ++i) {
       BaselineAggs.subspace[i] = UpstreamAggs.subspace[i];
       ImprovedDirsaveLutAggs.subspace[i] = UpstreamAggs.subspace[i];
@@ -318,9 +320,16 @@ int main(int argc, char** argv) {
     BenchmarkFunction(TwoSpinAggsSlow.Orthogonalise,        flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
     BenchmarkFunction(TwoSpinAggsFast.Orthogonalise,        flop, byte, nIterOnce, nSecOnce, checkOrthog, gsPasses);
 
-    undoChiralDoubling(UpstreamAggs.subspace); // necessary for comparison
-    undoChiralDoubling(BaselineAggs.subspace); // necessary for comparison
-    undoChiralDoubling(ImprovedDirsaveLutAggs.subspace); // necessary for comparison
+    // necessary for comparison
+    if(Ls != 1) {
+      undoChiralDoublingG5R5(UpstreamAggs.subspace);
+      undoChiralDoublingG5R5(BaselineAggs.subspace);
+      undoChiralDoublingG5R5(ImprovedDirsaveLutAggs.subspace);
+    }  else {
+      undoChiralDoublingG5C(UpstreamAggs.subspace);
+      undoChiralDoublingG5C(BaselineAggs.subspace);
+      undoChiralDoublingG5C(ImprovedDirsaveLutAggs.subspace);
+    }
 
     std::cout << GridLogMessage << "Deviations of BaselineAggs.Subspace() from UpstreamAggs.subspace" << std::endl;
     for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], BaselineAggs.Subspace()[i]);

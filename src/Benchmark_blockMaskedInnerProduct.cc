@@ -173,7 +173,8 @@ int main(int argc, char** argv) {
     TwoSpinAggsFast.Subspace()[i] = UpstreamAggs.subspace[i];
   TwoSpinAggsFast.Orthogonalise(checkOrthog, 1); // 1 gs pass
 
-  performChiralDoubling(UpstreamAggs.subspace);
+  if(Ls != 1) performChiralDoublingG5R5(UpstreamAggs.subspace);
+  else        performChiralDoublingG5C(UpstreamAggs.subspace);
   UpstreamAggs.Orthogonalise(checkOrthog, 1); // 1 gs pass
 
   /////////////////////////////////////////////////////////////////////////////

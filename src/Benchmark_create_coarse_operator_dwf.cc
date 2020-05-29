@@ -185,7 +185,7 @@ int main(int argc, char** argv) {
   UpstreamAggregation UpstreamAggs(FGrid_c, FGrid_f, cb);
 
   UpstreamAggs.CreateSubspaceRandom(FPRNG_f);
-  performChiralDoubling(UpstreamAggs.subspace);
+  performChiralDoublingG5R5(UpstreamAggs.subspace);
   UpstreamAggs.Orthogonalise(checkOrthog, gsPasses);
 
   /////////////////////////////////////////////////////////////////////////////

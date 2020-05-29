@@ -128,31 +128,22 @@ std::vector<std::string> readFromCommandLineCSL(int*                            
 }
 
 template<typename Field>
-void performChiralDoubling(std::vector<Field>& basisVectors) {
-  assert(basisVectors.size() % 2 == 0);
-  auto nb   = basisVectors.size() / 2;
-  auto ndim = basisVectors[0].Grid()->_ndimension;
-
-  RealD factor = (ndim == 5) ? 1.0 : 0.5;
-  for(int n = 0; n < nb; n++) {
+void performChiralDoublingG5R5(std::vector<Field>& basisVectors) {
+  assert(basisVectors.size()%2 == 0);
+  auto nb = basisVectors.size()/2;
+  for(int n=0; n<nb; n++) {
     auto tmp1 = basisVectors[n];
     auto tmp2 = tmp1;
-    if(ndim == 5) {
-      G5R5(tmp2, basisVectors[n]);
-    } else if (ndim == 4) {
-      G5C(tmp2, basisVectors[n]);
-    } else {
-      assert(0);
-    }
-    axpby(basisVectors[n], factor, factor, tmp1, tmp2);
-    axpby(basisVectors[n + nb], factor, -factor, tmp1, tmp2);
+    G5R5(tmp2, basisVectors[n]);
+    axpby(basisVectors[n], 1.0, 1.0, tmp1, tmp2);
+    axpby(basisVectors[n+nb], 1.0, -1.0, tmp1, tmp2);
     std::cout << GridLogMessage << "Chirally doubled vector " << n << ". "
               << "norm2(vec[" << n << "]) = " << norm2(basisVectors[n]) << ". "
-              << "norm2(vec[" << n + nb << "]) = " << norm2(basisVectors[n + nb]) << std::endl;
+              << "norm2(vec[" << n+nb << "]) = " << norm2(basisVectors[n+nb]) << std::endl;
 
     auto tmp1_v    = tmp1.View();
     auto basis_l_v = basisVectors[n].View();
-    auto basis_r_v = basisVectors[n + nb].View();
+    auto basis_r_v = basisVectors[n+nb].View();
 
     std::cout << GridLogDebug << "original = " << tmp1_v[0] << std::endl;
     std::cout << GridLogDebug << "left = " << basis_l_v[0] << std::endl;
@@ -161,21 +152,59 @@ void performChiralDoubling(std::vector<Field>& basisVectors) {
 }
 
 template<typename Field>
-void undoChiralDoubling(std::vector<Field>& basisVectors) {
-  assert(basisVectors.size() % 2 == 0);
-  auto nb   = basisVectors.size() / 2;
-  auto ndim = basisVectors[0].Grid()->_ndimension;
+void performChiralDoublingG5C(std::vector<Field>& basisVectors) {
+  assert(basisVectors.size()%2 == 0);
+  auto nb = basisVectors.size()/2;
 
-  for(int n = 0; n < nb; n++) {
-    if(ndim == 5) {
-      std::cout << GridLogWarning << "undoChiralDoubling not implemented for the 5d use case" << std::endl;
-    } else if (ndim == 4) {
-      basisVectors[n] = basisVectors[n] + basisVectors[n + nb];
-      std::cout << GridLogMessage << "Undid chiral doubling of vector " << n << ". "
-                << "norm2(vec[" << n << "]) = " << norm2(basisVectors[n]) << std::endl;
-    } else {
-      assert(0);
-    }
+  for(int n=0; n<nb; n++) {
+    auto tmp1 = basisVectors[n];
+    auto tmp2 = tmp1;
+    G5C(tmp2, basisVectors[n]);
+    axpby(basisVectors[n], 0.5, 0.5, tmp1, tmp2);
+    axpby(basisVectors[n+nb], 0.5, -0.5, tmp1, tmp2);
+    std::cout << GridLogMessage << "Chirally doubled vector " << n << ". "
+              << "norm2(vec[" << n << "]) = " << norm2(basisVectors[n]) << ". "
+              << "norm2(vec[" << n+nb << "]) = " << norm2(basisVectors[n+nb]) << std::endl;
+
+    auto tmp1_v    = tmp1.View();
+    auto basis_l_v = basisVectors[n].View();
+    auto basis_r_v = basisVectors[n+nb].View();
+
+    std::cout << GridLogDebug << "original = " << tmp1_v[0] << std::endl;
+    std::cout << GridLogDebug << "left = " << basis_l_v[0] << std::endl;
+    std::cout << GridLogDebug << "right = " << basis_r_v[0] << std::endl;
+  }
+}
+
+// template<typename Field>
+// void performChiralDoubling(std::vector<Field>& basisVectors) {
+//   GridBase* grid = basisVectors[0].Grid();
+//   auto ndim = grid->_ndimension;
+//   if(ndim == 5 && grid->_rdimensions[0] != 1)
+//     performChiralDoublingG5R5(basisVectors);
+//   else
+//     performChiralDoublingG5C(basisVectors);
+// }
+
+template<typename Field>
+void undoChiralDoublingG5R5(std::vector<Field>& basisVectors) {
+  assert(basisVectors.size()%2 == 0);
+  auto nb = basisVectors.size()/2;
+
+  for(int n=0; n<nb; n++) {
+    std::cout << GridLogWarning << "undoChiralDoubling5d not implemented yet" << std::endl;
+  }
+}
+
+template<typename Field>
+void undoChiralDoublingG5C(std::vector<Field>& basisVectors) {
+  assert(basisVectors.size()%2 == 0);
+  auto nb = basisVectors.size()/2;
+
+  for(int n=0; n<nb; n++) {
+    basisVectors[n] = basisVectors[n] + basisVectors[n+nb];
+    std::cout << GridLogMessage << "Undid chiral doubling of vector " << n << ". "
+              << "norm2(vec[" << n << "]) = " << norm2(basisVectors[n]) << std::endl;
   }
 }
 
