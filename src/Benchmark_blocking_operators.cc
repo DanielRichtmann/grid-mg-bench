@@ -2,7 +2,7 @@
 
     Grid physics library, www.github.com/paboyle/Grid
 
-    Source file: ./benchmarks/Benchmark_blockMaskedInnerProduct.cc
+    Source file: ./benchmarks/Benchmark_blocking_operators.cc
 
     Copyright (C) 2015 - 2020
 
@@ -40,7 +40,7 @@ using namespace Grid::BenchmarkHelpers;
 
 // Enable control of nbasis from the compiler command line
 // NOTE to self: Copy the value of CXXFLAGS from the makefile and call make as follows:
-//   make CXXFLAGS="-DNBASIS=24 VALUE_OF_CXXFLAGS_IN_MAKEFILE" Benchmark_blockMaskedInnerProduct
+//   make CXXFLAGS="-DNBASIS=24 VALUE_OF_CXXFLAGS_IN_MAKEFILE" Benchmark_blocking_operators
 #ifndef NBASIS
 #define NBASIS 40
 #endif
@@ -246,7 +246,7 @@ int main(int argc, char** argv) {
 
     LatticeFermion src(FGrid_f);
     std::vector<UpstreamCoarseComplexField> res_upstream(nBasis, FGrid_c);
-    std::vector<TwoSpinCoarseFermionField> res_twospin(TwoSpinAggregation::Ns_c, FGrid_c);
+    std::vector<TwoSpinCoarseFermionField>  res_twospin(TwoSpinAggregation::Ns_c, FGrid_c);
     std::vector<UpstreamCoarseFermionField> res_improved(1, FGrid_c);
 
     random(FPRNG_f, src);
@@ -277,18 +277,62 @@ int main(int argc, char** argv) {
                             flop, byte, nIterMin, nSecMin, TwoSpinCoarsenedMatrix::Ns_c,
                             res_twospin[rhs], src, TwoSpinAggsFast.Subspace(), lut[myPoint]);
 
-      UpstreamCoarseFermionField tmp_improved(FGrid_c);
-      UpstreamCoarseFermionField diff(FGrid_c);
-      convertLayout(res_upstream, tmp_improved);
-      diff = res_improved[0] - tmp_improved;
-      auto diff2 = norm2(diff);
+      if(myPoint != geom.npoint-1) { // does nothing for self stencil point
+        UpstreamCoarseFermionField tmp(FGrid_c);
+        convertLayout(res_upstream, tmp);
+        printDeviationFromReference(tol, res_improved[0], tmp);
 
-      std::cout << GridLogDebug << "Result upstream(mask) = " << norm2(tmp_improved) << " result improved(lut) = " << norm2(res_improved[0]) << " diff = " << diff2 << std::endl;
-
-      assert(diff2 == 0.);
-
-      std::cout << GridLogMessage << "Results are equal" << std::endl;
+      }
     }
+    std::cout << GridLogMessage << "Results are equal" << std::endl;
+  }
+
+  {
+    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
+    std::cout << GridLogMessage << "Running benchmark for blockProject" << std::endl;
+    std::cout << GridLogMessage << "***************************************************************************" << std::endl;
+
+    LatticeFermion src(FGrid_f);
+    std::vector<UpstreamCoarseFermionField> res_upstream_blockProject(1, FGrid_c);
+    std::vector<UpstreamCoarseComplexField> res_upstream_blockMaskedInnerProduct(nBasis, FGrid_c);
+    std::vector<TwoSpinCoarseFermionField>  res_twospin(TwoSpinAggregation::Ns_c, FGrid_c);
+    std::vector<UpstreamCoarseFermionField> res_improved(1, FGrid_c);
+
+    random(FPRNG_f, src);
+
+    for(auto& elem : res_upstream_blockProject) elem = Zero();
+    for(auto& elem : res_upstream_blockMaskedInnerProduct) elem = Zero();
+    for(auto& elem : res_twospin) elem = Zero();
+    for(auto& elem : res_improved) elem = Zero();
+
+    UpstreamFineComplexField fullMask(FGrid_f); fullMask = UpstreamScalarType(1.0, 0.0);
+    CoarseningLookupTable    fullLut(FGrid_c, fullMask);
+
+    double flop = FVolume_f * (8 * siteElems_f) * nBasis;
+    double byte = FVolume_f * (2 * 1 + 2 * siteElems_f) * nBasis * sizeof(Complex);
+
+    BenchmarkFunctionMRHS(Grid::blockProject,
+                          flop, byte, nIterMin, nSecMin, 1,
+                          res_upstream_blockProject[rhs], src, UpstreamAggs.subspace);
+
+    BenchmarkFunctionMRHS(Grid::Upstream::blockMaskedInnerProduct,
+                          flop, byte, nIterMin, nSecMin, nBasis,
+                          res_upstream_blockMaskedInnerProduct[rhs], fullMask, UpstreamAggs.subspace[rhs], src);
+
+    BenchmarkFunctionMRHS(Grid::UpstreamImprovedDirsaveLut::blockLutedInnerProduct,
+                          flop, byte, nIterMin, nSecMin, 1,
+                          res_improved[rhs], src, UpstreamAggs.subspace, fullLut);
+
+    BenchmarkFunctionMRHS(TwoSpinAggregation::Kernels::aggregateProjectFast,
+                          flop, byte, nIterMin, nSecMin, TwoSpinCoarsenedMatrix::Ns_c,
+                          res_twospin[rhs], src, TwoSpinAggsFast.Subspace(), fullLut);
+
+    UpstreamCoarseFermionField tmp(FGrid_c);
+    convertLayout(res_upstream_blockMaskedInnerProduct, tmp);
+    printDeviationFromReference(tol, res_upstream_blockProject[0], tmp);
+    printDeviationFromReference(tol, res_upstream_blockProject[0], res_improved[0]);
+
+    std::cout << GridLogMessage << "Results are equal" << std::endl;
   }
 
   Grid_finalize();
