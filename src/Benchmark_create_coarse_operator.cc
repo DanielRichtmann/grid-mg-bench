@@ -297,7 +297,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of Baseline from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          printDeviationFromReference(tol, UpstreamCMat.A[p], BaselineCMat.A[p]);
+          assertResultMatchesReference(tol, UpstreamCMat.A[p], BaselineCMat.A[p]);
         }
       }
 
@@ -314,7 +314,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of ImprovedDirsave from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedDirsaveCMat.A[p]);
+          assertResultMatchesReference(tol, UpstreamCMat.A[p], ImprovedDirsaveCMat.A[p]);
         }
       }
 
@@ -331,7 +331,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of ImprovedDirsaveLut from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedDirsaveLutCMat.A[p]);
+          assertResultMatchesReference(tol, UpstreamCMat.A[p], ImprovedDirsaveLutCMat.A[p]);
         }
       }
 
@@ -348,7 +348,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of ImprovedDirsaveLutMRHS from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedDirsaveLutMRHSCMat.A[p]);
+          assertResultMatchesReference(tol, UpstreamCMat.A[p], ImprovedDirsaveLutMRHSCMat.A[p]);
         }
       }
 
@@ -367,7 +367,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of TwoSpin.Speed0.SlowProj from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); assertResultMatchesReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
         }
       }
 
@@ -386,7 +386,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of TwoSpin.Speed0.FastProj from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); assertResultMatchesReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
         }
       }
 
@@ -405,7 +405,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of TwoSpin.Speed1.SlowProj from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); assertResultMatchesReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
         }
       }
 
@@ -424,7 +424,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of TwoSpin.Speed1.FastProj from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); assertResultMatchesReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
         }
       }
 
@@ -443,7 +443,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of TwoSpin.Speed2.SlowProj from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); assertResultMatchesReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
         }
       }
 
@@ -462,7 +462,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of TwoSpin.Speed2.FastProj from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); printDeviationFromReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
+          convertLayout(TwoSpinCMat.Y_[p], CoarseLFUpstreamTmp); assertResultMatchesReference(tol, UpstreamCMat.A[p], CoarseLFUpstreamTmp);
         }
       }
     }

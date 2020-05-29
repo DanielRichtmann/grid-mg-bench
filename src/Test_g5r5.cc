@@ -97,7 +97,7 @@ int main(int argc, char** argv) {
     LatticeFermion sum(FGrid);
     for(int n = 0; n < nB; n++) {
       sum = basis[n] + basis[n + nB];
-      printDeviationFromReference(1e-15, basisSave[n], sum);
+      assertResultMatchesReference(1e-15, basisSave[n], sum);
     }
   }
 
@@ -124,7 +124,7 @@ int main(int argc, char** argv) {
     LatticeFermion sum(FGrid);
     for(int n = 0; n < nB; n++) {
       sum = basis[n] + basis[n + nB];
-      printDeviationFromReference(1e-15, basisSave[n], sum);
+      assertResultMatchesReference(1e-15, basisSave[n], sum);
     }
   }
 
@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
   ref = G5 * src;
   G5R5(res, src);
 
-  printDeviationFromReference(1e-15, ref, res);
+  assertResultMatchesReference(1e-15, ref, res);
 
   Grid_finalize();
 }

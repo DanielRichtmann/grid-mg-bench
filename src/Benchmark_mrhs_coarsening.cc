@@ -227,18 +227,18 @@ int main(int argc, char** argv) {
     UpstreamCoarseVector tmp_improved(UGrid_c);
     for(int i=0; i<nrhs; i++) {
       ExtractSlice(tmp_improved, vecs_res_5d_improved, i, 0);
-      printDeviationFromReference(tol, vecs_res_4d_improved[i], tmp_improved);
+      assertResultMatchesReference(tol, vecs_res_4d_improved[i], tmp_improved);
     }
 
     TwoSpinCoarseVector tmp_twospin(UGrid_c);
     for(int i=0; i<nrhs; i++) {
       ExtractSlice(tmp_twospin, vecs_res_5d_twospin, i, 0);
-      printDeviationFromReference(tol, vecs_res_4d_twospin[i], tmp_twospin);
+      assertResultMatchesReference(tol, vecs_res_4d_twospin[i], tmp_twospin);
     }
 
     for(int i=0; i<nrhs; i++) {
       LayoutConverters::convertLayout(vecs_res_4d_twospin[i], tmp_improved);
-      printDeviationFromReference(tol, vecs_res_4d_improved[i], tmp_improved);
+      assertResultMatchesReference(tol, vecs_res_4d_improved[i], tmp_improved);
     }
   }
 
@@ -276,7 +276,7 @@ int main(int argc, char** argv) {
     LatticeFermion tmp(UGrid_f);
     for(int i=0; i<nrhs; i++) {
       ExtractSlice(tmp, vecs_res_5d_twospin, i, 0);
-      printDeviationFromReference(tol, vecs_res_4d_twospin[i], tmp);
+      assertResultMatchesReference(tol, vecs_res_4d_twospin[i], tmp);
     }
   }
 

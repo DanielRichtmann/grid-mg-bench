@@ -209,21 +209,26 @@ void undoChiralDoublingG5C(std::vector<Field>& basisVectors) {
 }
 
 template<class Field>
-void printDeviationFromReference(RealD tolerance, Field const& reference, Field const& result) {
+void assertResultMatchesReference(RealD tolerance, Field const& reference, Field const& result) {
   conformable(reference.Grid(), result.Grid());
   Field diff(reference.Grid());
 
   diff        = reference - result;
   auto absDev = norm2(diff);
   auto relDev = absDev / norm2(reference);
-  std::cout << GridLogMessage << "absolute deviation = " << absDev << " | relative deviation = " << relDev;
 
-  if(relDev > tolerance) {
-    std::cout << " > " << tolerance << " -> check failed" << std::endl;
-    abort();
-  } else {
+  std::cout << GridLogMessage
+            << "ref = " << norm2(reference)
+            << " res = " << norm2(result)
+            << " absolute deviation = " << absDev
+            << " relative deviation = " << relDev;
+
+  if(relDev <= tolerance) {
     std::cout << " < " << tolerance << " -> check passed" << std::endl;
+  } else {
+    std::cout << " > " << tolerance << " -> check failed" << std::endl;
   }
+  assert(relDev <= tolerance);
 }
 
 template<class vobj>

@@ -280,8 +280,7 @@ int main(int argc, char** argv) {
       if(myPoint != geom.npoint-1) { // does nothing for self stencil point
         UpstreamCoarseFermionField tmp(FGrid_c);
         convertLayout(res_upstream, tmp);
-        printDeviationFromReference(tol, res_improved[0], tmp);
-
+        assertResultMatchesReference(tol, res_improved[0], tmp);
       }
     }
     std::cout << GridLogMessage << "Results are equal" << std::endl;
@@ -329,8 +328,8 @@ int main(int argc, char** argv) {
 
     UpstreamCoarseFermionField tmp(FGrid_c);
     convertLayout(res_upstream_blockMaskedInnerProduct, tmp);
-    printDeviationFromReference(tol, res_upstream_blockProject[0], tmp);
-    printDeviationFromReference(tol, res_upstream_blockProject[0], res_improved[0]);
+    assertResultMatchesReference(tol, res_upstream_blockProject[0], tmp);
+    assertResultMatchesReference(tol, res_upstream_blockProject[0], res_improved[0]);
 
     std::cout << GridLogMessage << "Results are equal" << std::endl;
   }

@@ -173,7 +173,7 @@ int main(int argc, char** argv) {
     BenchmarkFunction(TwoSpinCMat.M,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
-    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
+    assertResultMatchesReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
   }
 
   {
@@ -197,7 +197,7 @@ int main(int argc, char** argv) {
     BenchmarkFunction(TwoSpinCMat.Mdag,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
-    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
+    assertResultMatchesReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
   }
 
   {
@@ -220,7 +220,7 @@ int main(int argc, char** argv) {
     BenchmarkFunction(TwoSpinCMat.Mdir,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
-    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
+    assertResultMatchesReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
   }
 
   {
@@ -243,7 +243,7 @@ int main(int argc, char** argv) {
     BenchmarkFunction(TwoSpinCMat.Mdiag,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut);
 
     convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
-    printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
+    assertResultMatchesReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
   }
 
   // {
@@ -266,7 +266,7 @@ int main(int argc, char** argv) {
   //   BenchmarkFunction(TwoSpinCMat.Mdir,  flop, byte, nIterMin, nSecMin, CoarseVecTwospinIn,  CoarseVecTwospinOut,  2, 1);
 
   //   convertLayout(CoarseVecTwospinOut, CoarseVecUpstreamTmp);
-  //   printDeviationFromReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
+  //   assertResultMatchesReference(tol, CoarseVecUpstreamOut, CoarseVecUpstreamTmp);
   // }
 
   Grid_finalize();

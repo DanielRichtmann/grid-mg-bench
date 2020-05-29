@@ -226,10 +226,10 @@ int main(int argc, char** argv) {
     BenchmarkFunction(TwoSpinAggsFast.ProjectToSubspace,        flop, byte, nIterMin, nSecMin, CoarseVecTwospinFast,        FineVec);
 
     // clang-format off
-    printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecBaseline);
-    printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecImprovedDirsaveLut);
-    convertLayout(CoarseVecTwospinSlow,CoarseVecUpstreamTmp); printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecUpstreamTmp);
-    convertLayout(CoarseVecTwospinFast,CoarseVecUpstreamTmp); printDeviationFromReference(tol, CoarseVecUpstream, CoarseVecUpstreamTmp);
+    assertResultMatchesReference(tol, CoarseVecUpstream, CoarseVecBaseline);
+    assertResultMatchesReference(tol, CoarseVecUpstream, CoarseVecImprovedDirsaveLut);
+    convertLayout(CoarseVecTwospinSlow,CoarseVecUpstreamTmp); assertResultMatchesReference(tol, CoarseVecUpstream, CoarseVecUpstreamTmp);
+    convertLayout(CoarseVecTwospinFast,CoarseVecUpstreamTmp); assertResultMatchesReference(tol, CoarseVecUpstream, CoarseVecUpstreamTmp);
     // clang-format on
   }
 
@@ -260,10 +260,10 @@ int main(int argc, char** argv) {
     BenchmarkFunction(TwoSpinAggsSlow.PromoteFromSubspace,        flop, byte, nIterMin, nSecMin, CoarseVecTwospinSlow,        FineVecTwospinSlow);
     BenchmarkFunction(TwoSpinAggsFast.PromoteFromSubspace,        flop, byte, nIterMin, nSecMin, CoarseVecTwospinFast,        FineVecTwospinFast);
 
-    printDeviationFromReference(tol, FineVecUpstream, FineVecBaseline);
-    printDeviationFromReference(tol, FineVecUpstream, FineVecImprovedDirsaveLut);
-    printDeviationFromReference(tol, FineVecUpstream, FineVecTwospinSlow);
-    printDeviationFromReference(tol, FineVecUpstream, FineVecTwospinFast);
+    assertResultMatchesReference(tol, FineVecUpstream, FineVecBaseline);
+    assertResultMatchesReference(tol, FineVecUpstream, FineVecImprovedDirsaveLut);
+    assertResultMatchesReference(tol, FineVecUpstream, FineVecTwospinSlow);
+    assertResultMatchesReference(tol, FineVecUpstream, FineVecTwospinFast);
   }
 
   {
@@ -332,13 +332,13 @@ int main(int argc, char** argv) {
     }
 
     std::cout << GridLogMessage << "Deviations of BaselineAggs.Subspace() from UpstreamAggs.subspace" << std::endl;
-    for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], BaselineAggs.Subspace()[i]);
+    for(auto i = 0; i < nB; ++i) assertResultMatchesReference(tol, UpstreamAggs.subspace[i], BaselineAggs.Subspace()[i]);
     std::cout << GridLogMessage << "Deviations of ImprovedDirsaveLutAggs.Subspace() from UpstreamAggs.subspace" << std::endl;
-    for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], ImprovedDirsaveLutAggs.subspace[i]);
+    for(auto i = 0; i < nB; ++i) assertResultMatchesReference(tol, UpstreamAggs.subspace[i], ImprovedDirsaveLutAggs.subspace[i]);
     std::cout << GridLogMessage << "Deviations of TwoSpinAggsSlow.Subspace() from UpstreamAggs.subspace" << std::endl;
-    for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], TwoSpinAggsSlow.Subspace()[i]);
+    for(auto i = 0; i < nB; ++i) assertResultMatchesReference(tol, UpstreamAggs.subspace[i], TwoSpinAggsSlow.Subspace()[i]);
     std::cout << GridLogMessage << "Deviations of TwoSpinAggsFast.Subspace() from UpstreamAggs.subspace" << std::endl;
-    for(auto i = 0; i < nB; ++i) printDeviationFromReference(tol, UpstreamAggs.subspace[i], TwoSpinAggsFast.Subspace()[i]);
+    for(auto i = 0; i < nB; ++i) assertResultMatchesReference(tol, UpstreamAggs.subspace[i], TwoSpinAggsFast.Subspace()[i]);
   }
 
   Grid_finalize();

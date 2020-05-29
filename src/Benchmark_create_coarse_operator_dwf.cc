@@ -264,7 +264,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of Baseline from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          printDeviationFromReference(tol, UpstreamCMat.A[p], BaselineCMat.A[p]);
+          assertResultMatchesReference(tol, UpstreamCMat.A[p], BaselineCMat.A[p]);
         }
       }
 
@@ -281,7 +281,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of ImprovedDirsave from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedDirsaveCMat.A[p]);
+          assertResultMatchesReference(tol, UpstreamCMat.A[p], ImprovedDirsaveCMat.A[p]);
         }
       }
 
@@ -298,7 +298,7 @@ int main(int argc, char** argv) {
 
         std::cout << GridLogMessage << "Deviations of ImprovedDirsaveLut from Upstream" << std::endl;
         for(int p = 0; p < UpstreamCMat.geom.npoint; ++p) {
-          printDeviationFromReference(tol, UpstreamCMat.A[p], ImprovedDirsaveLutCMat.A[p]);
+          assertResultMatchesReference(tol, UpstreamCMat.A[p], ImprovedDirsaveLutCMat.A[p]);
         }
       }
     }
