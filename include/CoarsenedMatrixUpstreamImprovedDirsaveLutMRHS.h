@@ -774,6 +774,8 @@ public:
     // - https://devblogs.nvidia.com/new-compiler-features-cuda-8/
     auto& geom_    = geom;
 
+    auto Stencil_v = Stencil->View();
+
     accelerator_for(sFb, in.Grid()->oSites()*nbasis, Nsimd, {
       int sF = sFb/nbasis;
       int b  = sFb%nbasis;
@@ -787,12 +789,12 @@ public:
       int lane=SIMTlane(Nsimd);
       for(int point=0;point<geom_.npoint;point++){
 
-	SE=Stencil->GetEntry(ptype,point,sF);
+	SE=Stencil_v.GetEntry(ptype,point,sF);
 	  
 	if(SE->_is_local) { 
 	  nbr = coalescedReadPermute(in_v[SE->_offset],ptype,SE->_permute,lane);
 	} else {
-	  nbr = coalescedRead(Stencil->CommBuf()[SE->_offset],lane);
+	  nbr = coalescedRead(Stencil_v.CommBuf()[SE->_offset],lane);
 	}
 	synchronise();
 
@@ -835,7 +837,8 @@ public:
   {
     conformable(in.Grid(),out.Grid());
 
-    Stencil = getCorrectStencil(in.Grid());
+    Stencil        = getCorrectStencil(in.Grid());
+    auto Stencil_v = Stencil->View();
 
     int LLs = 1;
     if(in.Grid()->_ndimension == _CoarseFiveDimGrid->_ndimension)
@@ -864,12 +867,12 @@ public:
       StencilEntry *SE;
 
       int lane=SIMTlane(Nsimd);
-      SE=Stencil->GetEntry(ptype,point,sF);
+      SE=Stencil_v.GetEntry(ptype,point,sF);
 	  
       if(SE->_is_local) { 
 	nbr = coalescedReadPermute(in_v[SE->_offset],ptype,SE->_permute,lane);
       } else {
-	nbr = coalescedRead(Stencil->CommBuf()[SE->_offset],lane);
+	nbr = coalescedRead(Stencil_v.CommBuf()[SE->_offset],lane);
       }
       synchronise();
 
@@ -886,14 +889,14 @@ public:
       int ptype;
       StencilEntry *SE;
       
-      SE=Stencil->GetEntry(ptype,point,ss);
+      SE=Stencil_v.GetEntry(ptype,point,ss);
       
       if(SE->_is_local&&SE->_permute) {
 	permute(nbr,in_v[SE->_offset],ptype);
       } else if(SE->_is_local) {
 	nbr = in_v[SE->_offset];
       } else {
-	nbr = Stencil->CommBuf()[SE->_offset];
+	nbr = Stencil_v.CommBuf()[SE->_offset];
       }
       synchronise();
 
@@ -1209,7 +1212,6 @@ public:
     prof_.Stop("CoarsenOperator.ConstructLinksComm");
   }
 
-private:
   void assertGridsCorrect() {
     // correct dimensionality
     assert(_FineFiveDimGrid->_ndimension == 5);
@@ -1299,13 +1301,12 @@ private:
     assert(self_stencil!=-1);
   }
 
-
-  CartesianStencil<siteVector,siteVector,int>* getCorrectStencil(GridBase* grid) {
+  CartesianStencil<siteVector, siteVector, int>* getCorrectStencil(GridBase* grid) {
     if(grid->_ndimension == _CoarseFourDimGrid->_ndimension) {
-      conformable(_CoarseFourDimGrid,grid);
+      conformable(_CoarseFourDimGrid, grid);
       return &Stencil_4d;
     } else if(grid->_ndimension == _CoarseFiveDimGrid->_ndimension) {
-      conformable(_CoarseFiveDimGrid,grid);
+      conformable(_CoarseFiveDimGrid, grid);
       return &Stencil_5d;
     } else {
       assert(grid->_ndimension == _CoarseFourDimGrid->_ndimension ||
@@ -1314,40 +1315,40 @@ private:
     }
   }
 
-  template<class Field>
-  void convert4dVecTo5dMRHS(std::vector<Field> const& in_4d, Field& out_5d) {
-    GridBase* grid_4d = in_4d[0].Grid();
-    GridBase* grid_5d = out_5d.Grid();
+  // template<class Field>
+  // void convert4dVecTo5dMRHS(std::vector<Field> const& in_4d, Field& out_5d) {
+  //   GridBase* grid_4d = in_4d[0].Grid();
+  //   GridBase* grid_5d = out_5d.Grid();
 
-    const int nRHS = grid_5d->_rdimensions[0];
-    assert(in_4d.size() == nRHS);
+  //   const int nRHS = grid_5d->_rdimensions[0];
+  //   assert(in_4d.size() == nRHS);
 
-    auto  out_5d_v       = out_5d.View();
-    auto  in_4d_vc = getViewContainer(in_4d);
-    auto* in_4d_vp = &in_4d_vc[0];
-    accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
-      auto sU  = sF/nRHS;
-      auto rhs = sF%nRHS;
-      coalescedWrite(out_5d_v[sF],in_4d_vp[rhs](sU));
-    });
-  }
-  template<class Field>
-  void convert5dMRHSTo4dVec(Field const& in_5d, std::vector<Field>& out_4d) {
-    GridBase* grid_4d = out_4d[0].Grid();
-    GridBase* grid_5d = in_5d.Grid();
+  //   auto  out_5d_v       = out_5d.View();
+  //   auto  in_4d_vc = getViewContainer(in_4d);
+  //   auto* in_4d_vp = &in_4d_vc[0];
+  //   accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
+  //     auto sU  = sF/nRHS;
+  //     auto rhs = sF%nRHS;
+  //     coalescedWrite(out_5d_v[sF],in_4d_vp[rhs](sU));
+  //   });
+  // }
+  // template<class Field>
+  // void convert5dMRHSTo4dVec(Field const& in_5d, std::vector<Field>& out_4d) {
+  //   GridBase* grid_4d = out_4d[0].Grid();
+  //   GridBase* grid_5d = in_5d.Grid();
 
-    const int nRHS = grid_5d->_rdimensions[0];
-    assert(out_4d.size() == nRHS);
+  //   const int nRHS = grid_5d->_rdimensions[0];
+  //   assert(out_4d.size() == nRHS);
 
-    auto  in_5d_v       = in_5d.View();
-    auto  out_4d_vc = getViewContainer(out_4d);
-    auto* out_4d_vp = &out_4d_vc[0];
-    accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
-      auto sU  = sF/nRHS;
-      auto rhs = sF%nRHS;
-      coalescedWrite(out_4d_vp[rhs][sU],in_5d_v(sF));
-    });
-  }
+  //   auto  in_5d_v       = in_5d.View();
+  //   auto  out_4d_vc = getViewContainer(out_4d);
+  //   auto* out_4d_vp = &out_4d_vc[0];
+  //   accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
+  //     auto sU  = sF/nRHS;
+  //     auto rhs = sF%nRHS;
+  //     coalescedWrite(out_4d_vp[rhs][sU],in_5d_v(sF));
+  //   });
+  // }
 
 };
 
