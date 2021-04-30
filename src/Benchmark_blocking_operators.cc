@@ -50,12 +50,12 @@ void convertLayout(std::vector<Lattice<CComplex>> const& in, Lattice<iVector<CCo
   assert(in.size() == nbasis);
   for(auto const& elem : in) conformable(elem, out);
 
-  auto  out_v = out.View();
-  auto  in_vc = getViewContainer(in);
-  auto* in_va = &in_vc[0];
+  autoView(out_v, out, AcceleratorWrite);
+  vectorViewPointerOpen(in_v, in_p, in, AcceleratorRead);
   accelerator_for(ss, out.Grid()->oSites(), CComplex::Nsimd(), {
-    for(int i = 0; i < nbasis; i++) { coalescedWrite(out_v[ss](i), in_va[i](ss)); }
+    for(int i = 0; i < nbasis; i++) { coalescedWrite(out_v[ss](i), in_p[i](ss)); }
   });
+  vectorViewPointerClose(in_v, in_p);
 }
 
 int main(int argc, char** argv) {

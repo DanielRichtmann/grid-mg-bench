@@ -128,8 +128,7 @@ public:
     auto lut_v       = lut.View();
     auto sizes_v     = lut.Sizes();
 
-    auto  projector_v_c   = getViewContainer(projector);
-    auto* projector_v_c_p = &projector_v_c[0];
+    vectorViewPointerOpen(projector_v, projector_p, projector, AcceleratorRead);
 
     accelerator_for(scF, coarseGrid->oSites(), Simd::Nsimd(), {
       auto scU = scF/LLs;
@@ -144,7 +143,7 @@ public:
 
         auto fineVec_t = fineVec_v(sfF);
         for(int c = 0; c < Nc_c; ++c) {
-          auto projector_t = coalescedRead(projector_v_c_p[c][sfU]);
+          auto projector_t = coalescedRead(projector_p[c][sfU]);
           for(int s = 0; s < Ns_f; ++s) {
             coarseVec_t()(s / Ns_b)(c) =
               coarseVec_t()(s / Ns_b)(c) +
@@ -154,6 +153,7 @@ public:
       }
       coalescedWrite(coarseVec_v[scF], coarseVec_t);
     });
+    vectorViewPointerClose(projector_v, projector_p);
   }
 
   static void aggregatePromote(FermionField const&          coarseVec,
@@ -236,8 +236,7 @@ public:
     auto coarseVec_v = coarseVec.View();
     auto rlut_v      = lut.ReverseView();
 
-    auto  projector_v_c   = getViewContainer(projector);
-    auto* projector_v_c_p = &projector_v_c[0];
+    vectorViewPointerOpen(projector_v, projector_p, projector, AcceleratorRead);
 
     accelerator_for(sfF, fineGrid->oSites(), Simd::Nsimd(), {
       auto sfU = sfF/LLs;
@@ -250,7 +249,7 @@ public:
 
       iScalar<typename decltype(coarseVec_t)::vector_type> tmp;
       for(int i = 0; i < Nc_c; ++i) {
-        auto projector_t = coalescedRead(projector_v_c_p[i][sfU]);
+        auto projector_t = coalescedRead(projector_p[i][sfU]);
         for(int s = 0; s < Ns_f; ++s) {
           tmp() = coarseVec_t()(s / Ns_b)(i);
           if(i == 0)
@@ -261,6 +260,7 @@ public:
       }
       coalescedWrite(fineVec_v[sfF], fineVec_t);
     });
+    vectorViewPointerClose(projector_v, projector_p);
   }
 
   static void aggregateOrthogonalise(ScalarField&                 innerProd,
@@ -284,8 +284,7 @@ public:
     auto lut_v   = lut.View();
     auto sizes_v = lut.Sizes();
 
-    auto  projector_v_c   = getViewContainer(projector);
-    auto* projector_v_c_p = &projector_v_c[0];
+    vectorViewPointerOpen(projector_v, projector_p, projector, AcceleratorWrite);
 
     // Kernel fusion
     accelerator_for(sc, coarseGrid->oSites(), Simd::Nsimd(), {
@@ -299,8 +298,8 @@ public:
           // alpha = <proj[u], proj[v]>
           for(size_type i = 0; i < sizes_v[sc]; ++i) {
             auto sf    = lut_v[sc][i];
-            auto p_u_t = coalescedRead(projector_v_c_p[u][sf]);
-            auto p_v_t = coalescedRead(projector_v_c_p[v][sf]);
+            auto p_u_t = coalescedRead(projector_p[u][sf]);
+            auto p_v_t = coalescedRead(projector_p[v][sf]);
             for(int s = 0; s < Ns_f; ++s)
               alpha_t()(s / Ns_b) = alpha_t()(s / Ns_b) + innerProduct((p_u_t()(s)), p_v_t()(s));
           }
@@ -308,11 +307,11 @@ public:
           // proj[v] -= alpha * proj[u]
           for(size_type i = 0; i < sizes_v[sc]; ++i) {
             auto sf    = lut_v[sc][i];
-            auto p_u_t = coalescedRead(projector_v_c_p[u][sf]);
-            auto p_v_t = coalescedRead(projector_v_c_p[v][sf]);
+            auto p_u_t = coalescedRead(projector_p[u][sf]);
+            auto p_v_t = coalescedRead(projector_p[v][sf]);
             for(int s = 0; s < Ns_f; ++s)
               p_v_t()(s) = p_v_t()(s) - alpha_t()(s / Ns_b) * p_u_t()(s);
-            coalescedWrite(projector_v_c_p[v][sf], p_v_t);
+            coalescedWrite(projector_p[v][sf], p_v_t);
           }
         }
 
@@ -321,7 +320,7 @@ public:
         // norm = <proj[v], proj[v]>
         for(size_type i = 0; i < sizes_v[sc]; ++i) {
           auto sf    = lut_v[sc][i];
-          auto p_v_t = coalescedRead(projector_v_c_p[v][sf]);
+          auto p_v_t = coalescedRead(projector_p[v][sf]);
           for(int s = 0; s < Ns_f; ++s)
             norm_t()(s / Ns_b) = norm_t()(s / Ns_b) + innerProduct(p_v_t()(s), p_v_t()(s));
         }
@@ -331,13 +330,14 @@ public:
         // proj[v] = 1/norm * proj[v]
         for(size_type i = 0; i < sizes_v[sc]; ++i) {
           auto sf    = lut_v[sc][i];
-          auto p_v_t = coalescedRead(projector_v_c_p[v][sf]);
+          auto p_v_t = coalescedRead(projector_p[v][sf]);
           for(int s = 0; s < Ns_f; ++s)
             p_v_t()(s) = norm_t()(s / Ns_b) * p_v_t()(s);
-          coalescedWrite(projector_v_c_p[v][sf], p_v_t);
+          coalescedWrite(projector_p[v][sf], p_v_t);
         }
       }
     });
+    vectorViewPointerClose(projector_v, projector_p);
   }
 };
 

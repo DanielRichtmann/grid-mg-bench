@@ -121,8 +121,7 @@ public:
     typedef decltype(coalescedRead(in_v[0]()(0)(0))) SiteScalarCR;
 
     // need to access data per raw pointer on GPU
-    auto  Y_v_c   = getViewContainer(Y_);
-    auto* Y_v_c_p = &Y_v_c[0];
+    vectorViewPointerOpen(Y_v, Y_p, Y_, AcceleratorRead);
 
     // need to take references, otherwise we get illegal memory accesses
     // happens since the lambda copies the this pointer which points to host memory, see
@@ -154,11 +153,13 @@ public:
 
         for(int s2=0;s2<Ns_c;s2++) {
           for(int c2=0;c2<Nc_c;c2++)
-            res = res + coalescedRead(Y_v_c_p[point][ss]()(s1,s2)(c1,c2)) * nbr()(s2)(c2);
+            res = res + coalescedRead(Y_p[point][ss]()(s1,s2)(c1,c2)) * nbr()(s2)(c2);
         }
       }
       coalescedWrite(out_v[ss]()(s1)(c1), res, lane);
     });
+
+    vectorViewPointerClose(Y_v, Y_p);
   }
 
   void Mdag(FermionField const& in, FermionField& out) {
@@ -307,8 +308,7 @@ public:
       typedef decltype(coalescedRead(tmp_v[0]()(0)(0))) SiteScalarCR;
 
       // need to access data per raw pointer on GPU
-      auto  Y_v_c   = getViewContainer(Y);
-      auto* Y_v_c_p = &Y_v_c[0];
+      vectorViewPointerOpen(Y_v, Y_p, Y_, AcceleratorRead);
 
       // need to take a reference, otherwise we get illegal memory accesses
       // see links above for reason
@@ -338,12 +338,13 @@ public:
 
             for(int s2=0;s2<Ns_c;s2++) {
               for(int c2=0;c2<Nc_c;c2++)
-                res = res + coalescedRead(Y_v_c_p[point][ss]()(s1,s2)(c1,c2)) * nbr()(s2)(c2);
+                res = res + coalescedRead(Y_p[point][ss]()(s1,s2)(c1,c2)) * nbr()(s2)(c2);
             }
           }
         }
         coalescedWrite(tmp2_v[ss]()(s1)(c1), res, lane);
       });
+      vectorViewPointerClose(Y_v, Y_p);
       G5C(out, tmp2); // FIXME: This explicitly ties us to Galerkin coarsening
     } else {
       SimpleCompressor<SiteSpinor> compressor;
@@ -357,8 +358,7 @@ public:
       typedef decltype(coalescedRead(in_v[0]()(0)(0))) SiteScalarCR;
 
       // need to access data per raw pointer on GPU
-      auto  Y_v_c   = getViewContainer(Y);
-      auto* Y_v_c_p = &Y_v_c[0];
+      vectorViewPointerOpen(Y_v, Y_p, Y_, AcceleratorRead);
 
       // need to take a reference, otherwise we get illegal memory accesses
       // see links above for reason
@@ -388,12 +388,13 @@ public:
 
             for(int s2=0;s2<Ns_c;s2++) {
               for(int c2=0;c2<Nc_c;c2++)
-                res = res + coalescedRead(Y_v_c_p[point][ss]()(s1,s2)(c1,c2)) * nbr()(s2)(c2);
+                res = res + coalescedRead(Y_p[point][ss]()(s1,s2)(c1,c2)) * nbr()(s2)(c2);
             }
           }
         }
         coalescedWrite(out_v[ss]()(s1)(c1), res, lane);
       });
+      vectorViewPointerClose(Y_v, Y_p);
     }
   }
 

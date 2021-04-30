@@ -28,6 +28,7 @@ See the full license in the file "LICENSE" in the top level distribution directo
 
 #pragma once
 
+#include <Views.h>
 #include <CoarseningPolicyRework.h>
 #include <CoarseningLookupTableRework.h>
 #include <GeometryRework.h>

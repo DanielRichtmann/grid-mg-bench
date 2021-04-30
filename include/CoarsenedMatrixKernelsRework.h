@@ -58,8 +58,7 @@ public:
 
     for(int k = 0; k < Ns_c; ++k) out[k] = Zero();
 
-    auto  out_v_c   = getViewContainer(out);
-    auto* out_v_c_p = &out_v_c[0];
+    vectorViewPointerOpen(out_v, out_p, out, AcceleratorWrite);
 
     auto in_v = in.View();
 
@@ -72,16 +71,17 @@ public:
           int s5r = Ls - 1 - s5;
           auto tmp = in_v(ss + s5);
           for(int s = 0; s < Ns_f; ++s)
-            coalescedWrite(out_v_c_p[s / Ns_b][ss + s5r]()(s), tmp()(s));
+            coalescedWrite(out_p[s / Ns_b][ss + s5r]()(s), tmp()(s));
         }
       });
     } else {
       accelerator_for(ss, in.Grid()->oSites(), Simd::Nsimd(), {
         auto tmp = in_v(ss);
         for(int s = 0; s < Ns_f; ++s)
-          coalescedWrite(out_v_c_p[s / Ns_b][ss]()(s), tmp()(s));
+          coalescedWrite(out_p[s / Ns_b][ss]()(s), tmp()(s));
       });
     }
+    vectorViewPointerClose(out_v, out_p);
   }
 
   static void constructLinksFull(int                              i,
@@ -94,11 +94,8 @@ public:
     auto Y_p_v    = Y[p].View();
     auto Y_self_v = Y[self_stencil].View();
 
-    auto iProjSplit_v_c = getViewContainer(iProjSplit);
-    auto oProjSplit_v_c = getViewContainer(oProjSplit);
-
-    auto* iProjSplit_v_c_p = &iProjSplit_v_c[0];
-    auto* oProjSplit_v_c_p = &oProjSplit_v_c[0];
+    vectorViewPointerOpen(iProjSplit_v, iProjSplit_p, iProjSplit, AcceleratorRead);
+    vectorViewPointerOpen(oProjSplit_v, oProjSplit_p, oProjSplit, AcceleratorRead);
 
     accelerator_for(ss, Y[p].Grid()->oSites(), Simd::Nsimd(), {
       auto Y_p_t    = Y_p_v(ss);
@@ -106,14 +103,14 @@ public:
       for(int j = 0; j < Nc_c; ++j) {
         if(disp != 0) {
           for(int k = 0; k < Ns_c; ++k) {
-            auto oProjSplit_t = coalescedRead(oProjSplit_v_c_p[k][ss]);
+            auto oProjSplit_t = coalescedRead(oProjSplit_p[k][ss]);
             for(int l = 0; l < Ns_c; ++l)
               Y_p_t()(l, k)(j, i) = oProjSplit_t()(l)(j);
           }
         }
 
         for(int k = 0; k < Ns_c; ++k) {
-          auto iProjSplit_t = coalescedRead(iProjSplit_v_c_p[k][ss]);
+          auto iProjSplit_t = coalescedRead(iProjSplit_p[k][ss]);
           for(int l = 0; l < Ns_c; ++l)
             Y_self_t()(l, k)(j, i) = Y_self_t()(l, k)(j, i) + iProjSplit_t()(l)(j);
         }
@@ -121,22 +118,24 @@ public:
       coalescedWrite(Y_p_v[ss], Y_p_t);
       coalescedWrite(Y_self_v[ss], Y_self_t);
     });
+    vectorViewPointerClose(iProjSplit_v, iProjSplit_p);
+    vectorViewPointerClose(oProjSplit_v, oProjSplit_p);
   }
 
   static void constructLinkField(int i, LinkField& Yp, std::vector<FermionField> const& projSplit) {
-    auto  Yp_v            = Yp.View();
-    auto  projSplit_v_c   = getViewContainer(projSplit);
-    auto* projSplit_v_c_p = &projSplit_v_c[0];
-
+    autoView(Yp_v, Yp, AcceleratorWrite);
+    vectorViewPointerOpen(projSplit_v, projSplit_p, projSplit, AcceleratorRead);
     accelerator_for(ss, Yp.Grid()->oSites(), Simd::Nsimd(), {
-      for(int j = 0; j < Nc_c; ++j) {
-        for(int k = 0; k < Ns_c; ++k) {
-          auto projSplit_t = coalescedRead(projSplit_v_c_p[k][ss]);
-          for(int l = 0; l < Ns_c; ++l)
-            coalescedWrite(Yp_v[ss]()(l, k)(j, i), projSplit_t()(l)(j));
-        }
+      auto Yp_t = Yp_v(ss);
+      for(int k = 0; k < Ns_c; ++k) {
+        auto projSplit_t = projSplit_p[k](ss);
+        for(int l = 0; l < Ns_c; ++l)
+          for(int j = 0; j < Nc_c; ++j)
+            Yp_t()(l, k)(j, i) = projSplit_t()(l)(j);
       }
+      coalescedWrite(Yp_v[ss], Yp_t);
     });
+    vectorViewPointerClose(projSplit_v, projSplit_p);
   }
 
   static void shiftLinks(Geometry& geom, std::vector<LinkField>& Y, int dispHave) {

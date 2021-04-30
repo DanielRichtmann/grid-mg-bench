@@ -99,9 +99,7 @@ inline void blockLutedInnerProduct(Lattice<iVector<CComplex, nbasis>>  &coarseDa
   auto sizes_v      = lut.Sizes();
   auto fineData_v   = fineData.View();
   auto coarseData_v = coarseData.View();
-
-  auto  Basis_vc = getViewContainer(Basis);
-  auto* Basis_vp = &Basis_vc[0];
+  vectorViewPointerOpen(Basis_v, Basis_p, Basis, AcceleratorRead);
 
   accelerator_for(scFi, nbasis*coarse->oSites(), vobj::Nsimd(), {
     auto i   = scFi%nbasis;
@@ -109,15 +107,16 @@ inline void blockLutedInnerProduct(Lattice<iVector<CComplex, nbasis>>  &coarseDa
     auto s5  = scF%LLs;
     auto scU = scF/LLs;
 
-    decltype(innerProduct(Basis_vp[0](0), fineData_v(0))) reduce = Zero();
+    decltype(innerProduct(Basis_p[0](0), fineData_v(0))) reduce = Zero();
 
     for(int j=0; j<sizes_v[scU]; ++j) {
       int sfU = lut_v[scU][j];
       int sfF = sfU*LLs + s5;
-      reduce = reduce + innerProduct(Basis_vp[i](sfU), fineData_v(sfF));
+      reduce = reduce + innerProduct(Basis_p[i](sfU), fineData_v(sfF));
     }
     coalescedWrite(coarseData_v[scF](i), reduce);
   });
+  vectorViewPointerClose(Basis_v, Basis_p);
 }
 
 template<class vobj, class CComplex, int nbasis>
@@ -150,9 +149,7 @@ inline void blockLutedAxpy(const Lattice<iVector<CComplex, nbasis>> &coarseData,
   auto rlut_v       = lut.ReverseView();
   auto fineData_v   = fineData.View();
   auto coarseData_v = coarseData.View();
-
-  auto  Basis_vc = getViewContainer(Basis);
-  auto* Basis_vp = &Basis_vc[0];
+  vectorViewPointerOpen(Basis_v, Basis_p, Basis, AcceleratorRead);
 
   accelerator_for(sfF, fine->oSites(), vobj::Nsimd(), {
     auto s5  = sfF%LLs;
@@ -163,12 +160,13 @@ inline void blockLutedAxpy(const Lattice<iVector<CComplex, nbasis>> &coarseData,
     auto fineData_t = fineData_v(sfF);
     for(int i=0; i<nbasis; ++i) {
       if(i == 0)
-        fineData_t = coarseData_v(scF)(i) * Basis_vp[i](sfU);
+        fineData_t = coarseData_v(scF)(i) * Basis_p[i](sfU);
       else
-        fineData_t = fineData_t + coarseData_v(scF)(i) * Basis_vp[i](sfU);
+        fineData_t = fineData_t + coarseData_v(scF)(i) * Basis_p[i](sfU);
     }
     coalescedWrite(fineData_v[sfF], fineData_t);
   });
+  vectorViewPointerClose(Basis_v, Basis_p);
 }
 
 template<class CComplex, class vobj>
@@ -193,8 +191,7 @@ void blockLutedOrthonormalise(Lattice<CComplex>                    &ip,
   auto  norm_v   = norm.View();
   auto  lut_v    = lut.View();
   auto  sizes_v  = lut.Sizes();
-  auto  Basis_vc = getViewContainer(Basis);
-  auto* Basis_vp = &Basis_vc[0];
+  vectorViewPointerOpen(Basis_v, Basis_p, Basis, AcceleratorWrite);
 
   // Kernel fusion
   accelerator_for(sc, coarse->oSites(), vobj::Nsimd(), {
@@ -208,13 +205,13 @@ void blockLutedOrthonormalise(Lattice<CComplex>                    &ip,
         // alpha = <basis[u], basis[v]>
         for(size_type i=0; i<sizes_v[sc]; ++i) {
           auto sf   = lut_v[sc][i];
-          alpha_t = alpha_t + innerProduct(Basis_vp[u](sf), Basis_vp[v](sf));
+          alpha_t = alpha_t + innerProduct(Basis_p[u](sf), Basis_p[v](sf));
         }
 
         // basis[v] -= alpha * basis[u]
         for(size_type i=0; i<sizes_v[sc]; ++i) {
           auto sf = lut_v[sc][i];
-          coalescedWrite(Basis_vp[v][sf], Basis_vp[v](sf) - alpha_t * Basis_vp[u](sf));
+          coalescedWrite(Basis_p[v][sf], Basis_p[v](sf) - alpha_t * Basis_p[u](sf));
         }
       }
 
@@ -223,7 +220,7 @@ void blockLutedOrthonormalise(Lattice<CComplex>                    &ip,
       // norm = <basis[v], basis[v]>
       for(size_type i=0; i<sizes_v[sc]; ++i) {
         auto sf = lut_v[sc][i];
-        norm_t  = norm_t + innerProduct(Basis_vp[v](sf), Basis_vp[v](sf));
+        norm_t  = norm_t + innerProduct(Basis_p[v](sf), Basis_p[v](sf));
       }
 
       norm_t = pow(norm_t, -0.5);
@@ -231,10 +228,11 @@ void blockLutedOrthonormalise(Lattice<CComplex>                    &ip,
       // basis[v] = 1/norm * basis[v]
       for(size_type i=0; i<sizes_v[sc]; ++i) {
         auto sf = lut_v[sc][i];
-        coalescedWrite(Basis_vp[v][sf], norm_t * Basis_vp[v](sf));
+        coalescedWrite(Basis_p[v][sf], norm_t * Basis_p[v](sf));
       }
     }
   });
+  vectorViewPointerClose(Basis_v, Basis_p);
 }
 
 class Geometry {
@@ -1020,13 +1018,13 @@ public:
 
       prof_.Start("CoarsenOperator.ExtractVector");
       auto  phi_v       = phi.View();
-      auto  subspace_vc = getViewContainer(Subspace.subspace);
-      auto* subspace_vp = &subspace_vc[0];
+      vectorViewPointerOpen(subspace_v, subspace_p, Subspace.subspace, AcceleratorRead);
       accelerator_for(sfF, _FineFiveDimGrid->oSites(), Fobj::Nsimd(),{
         auto sfU = sfF/nblock;
         auto i5  = sfF%nblock;
-        coalescedWrite(phi_v[sfF],subspace_vp[i+i5](sfU));
+        coalescedWrite(phi_v[sfF],subspace_p[i+i5](sfU));
       });
+      vectorViewPointerClose(subspace_v, subspace_p);
       prof_.Stop("CoarsenOperator.ExtractVector");
 
       //      std::cout << GridLogMessage<< "CoarsenMatrix vector "<<i << std::endl;
@@ -1324,13 +1322,13 @@ public:
   //   assert(in_4d.size() == nRHS);
 
   //   auto  out_5d_v       = out_5d.View();
-  //   auto  in_4d_vc = getViewContainer(in_4d);
-  //   auto* in_4d_vp = &in_4d_vc[0];
+  //   vectorViewPointerOpen(in_4d_v, in_4d_p, in_4d, AcceleratorRead);
   //   accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
   //     auto sU  = sF/nRHS;
   //     auto rhs = sF%nRHS;
   //     coalescedWrite(out_5d_v[sF],in_4d_vp[rhs](sU));
   //   });
+  //   vectorViewPointerClose(in_4d_v, in_4d_p);
   // }
   // template<class Field>
   // void convert5dMRHSTo4dVec(Field const& in_5d, std::vector<Field>& out_4d) {
@@ -1341,15 +1339,14 @@ public:
   //   assert(out_4d.size() == nRHS);
 
   //   auto  in_5d_v       = in_5d.View();
-  //   auto  out_4d_vc = getViewContainer(out_4d);
-  //   auto* out_4d_vp = &out_4d_vc[0];
+  //   vectorViewPointerOpen(out_4d_v, out_4d_p, out_4d, AcceleratorWrite);
   //   accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
   //     auto sU  = sF/nRHS;
   //     auto rhs = sF%nRHS;
-  //     coalescedWrite(out_4d_vp[rhs][sU],in_5d_v(sF));
+  //     coalescedWrite(out_4d_p[rhs][sU],in_5d_v(sF));
   //   });
+  //   vectorViewPointerClose(out_4d_v, out_4d_p);
   // }
-
 };
 
 NAMESPACE_END(UpstreamImprovedDirsaveLutMRHS);
