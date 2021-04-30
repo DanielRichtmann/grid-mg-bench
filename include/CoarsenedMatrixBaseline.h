@@ -133,7 +133,7 @@ public:
     for(int i=0;i<nbasis;i++){
       ProjectToSubspace(iProj,subspace[i]);
       eProj=Zero(); 
-      auto eProj_v = eProj.View();
+      autoView(eProj_v, eProj, AcceleratorWrite);
       thread_for(ss, CoarseGrid->oSites(),{
 	eProj_v[ss](i)=CComplex(1.0);
       });
@@ -318,8 +318,8 @@ public:
 
     SimpleCompressor<siteVector> compressor;
     Stencil.HaloExchange(in,compressor);
-    auto in_v = in.View();
-    auto out_v = out.View();
+    autoView(in_v, in, CpuRead);
+    autoView(out_v, out, CpuWrite);
     thread_for(ss,Grid()->oSites(),{
       siteVector res = Zero();
       siteVector nbr;
@@ -336,7 +336,7 @@ public:
 	} else {
 	  nbr = Stencil.CommBuf()[SE->_offset];
 	}
-	auto A_point = A[point].View();
+    autoView(A_point, A[point], CpuRead);
 	res = res + A_point[ss]*nbr;
       }
       vstream(out_v[ss],res);
@@ -375,8 +375,8 @@ public:
 	return (4 * dir + 1 - disp) / 2;
     }();
 
-    auto out_v = out.View();
-    auto in_v  = in.View();
+    autoView(out_v, out, CpuWrite);
+    autoView(in_v, in, CpuRead);
     thread_for(ss,Grid()->oSites(),{
       siteVector res = Zero();
       siteVector nbr;
@@ -393,7 +393,7 @@ public:
 	nbr = Stencil.CommBuf()[SE->_offset];
       }
 
-      auto A_point = A[point].View();
+      auto A_point = A[point].View(CpuRead);
       res = res + A_point[ss]*nbr;
 
       vstream(out_v[ss],res);
@@ -497,8 +497,8 @@ public:
       SimpleCompressor<siteVector> compressor;
       st.HaloExchange(tmp, compressor);
 
-      auto tmp_v = tmp.View();
-      auto tmp2_v = tmp2.View();
+      autoView(tmp_v, tmp, CpuRead);
+      autoView(tmp2_v, tmp2, CpuWrite);
       thread_for(ss, tmp.Grid()->oSites(), {
         siteVector    res = Zero();
         siteVector    nbr;
@@ -515,7 +515,7 @@ public:
             } else {
               nbr = st.CommBuf()[SE->_offset];
             }
-            auto Y_point = Y[point].View();
+            auto Y_point = Y[point].View(CpuRead);
             res = res + Y_point[ss] * nbr;
           }
         }
@@ -526,8 +526,8 @@ public:
       SimpleCompressor<siteVector> compressor;
       st.HaloExchange(in, compressor);
 
-      auto in_v = in.View();
-      auto out_v = out.View();
+      autoView(in_v, in, CpuRead);
+      autoView(out_v, out, CpuWrite);
       thread_for(ss, in.Grid()->oSites(), {
         siteVector    res = Zero();
         siteVector    nbr;
@@ -544,7 +544,7 @@ public:
             } else {
               nbr = st.CommBuf()[SE->_offset];
             }
-            auto Y_point = Y[point].View();
+            auto Y_point = Y[point].View(CpuRead);
             res = res + Y_point[ss] * nbr;
           }
         }
@@ -658,10 +658,10 @@ public:
 	//	  blockProject(iProj,iblock,Subspace.subspace);
 	//	  blockProject(oProj,oblock,Subspace.subspace);
         prof_.Start("CoarsenOperator.ConstructLinksFull");
-	auto iProj_v = iProj.View() ;
-	auto oProj_v = oProj.View() ;
-	auto A_p     =  A[p].View();
-	auto A_self  = A[self_stencil].View();
+	autoView(iProj_v, iProj, CpuRead);
+	autoView(oProj_v, oProj, CpuRead);
+	autoView(A_p,  A[p], CpuWrite);
+	autoView(A_self,  A[self_stencil], CpuWrite);
 	thread_for(ss, Grid()->oSites(),{
 	  for(int j=0;j<nbasis;j++){
 	    if( disp!= 0 ) {

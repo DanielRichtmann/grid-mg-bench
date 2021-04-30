@@ -147,7 +147,7 @@ public:
 
     typename ScalarField::scalar_type zz = {0., 0.,};
 
-    auto mask_v = mask.View();
+    autoView(mask_v, mask, CpuRead);
     thread_for(sc, coarse_->oSites(), {
       Coordinate coor_c(_ndimension);
       Lexicographic::CoorFromIndex(coor_c, sc, coarse_->_rdimensions);

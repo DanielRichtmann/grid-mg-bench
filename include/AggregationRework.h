@@ -96,7 +96,7 @@ public:
     for(int i = 0; i < Nc_c; ++i) {
       ProjectToSubspace(iProj, subspace_[i]);
       eProj        = Zero();
-      auto eProj_v = eProj.View();
+      autoView(eProj_v, eProj, AcceleratorWrite);
       accelerator_for(ss, coarseGrid_->oSites(), Simd::Nsimd(), {
         for(int s = 0; s < Ns_c; ++s) eProj_v[ss]()(s)(i) = Simd(1.0);
       });

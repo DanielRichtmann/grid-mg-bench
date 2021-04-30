@@ -159,8 +159,8 @@ public:
     CoarseVector eProj(CoarseGrid); 
     for(int i=0;i<nbasis;i++){
       blockProject(iProj,subspace[i],subspace);
-      eProj=Zero(); 
-      auto eProj_v = eProj.View();
+      eProj=Zero();
+      autoView(eProj_v,eProj,AcceleratorWrite);
       accelerator_for(ss, CoarseGrid->oSites(),1,{
 	eProj_v[ss](i)=CComplex(1.0);
       });
@@ -281,10 +281,10 @@ public:
 	
 	hermop.HermOp(*Tn,y);
 
-	auto y_v = y.View();
-	auto Tn_v = Tn->View();
-	auto Tnp_v = Tnp->View();
-	auto Tnm_v = Tnm->View();
+	autoView( y_v , y, AcceleratorWrite);
+	autoView( Tn_v , (*Tn), AcceleratorWrite);
+	autoView( Tnp_v , (*Tnp), AcceleratorWrite);
+	autoView( Tnm_v , (*Tnm), AcceleratorWrite);
 	const int Nsimd = CComplex::Nsimd();
 	accelerator_forNB(ss, FineGrid->oSites(), Nsimd, {
 	  coalescedWrite(y_v[ss],xscale*y_v(ss)+mscale*Tn_v(ss));
@@ -554,13 +554,11 @@ public:
     Stencil.HaloExchange(in,compressor);
     comms_usec += usecond();
 
-    auto in_v = in.View();
-    auto out_v = out.View();
-    typedef LatticeView<Cobj> Aview;
-
-    Vector<Aview> AcceleratorViewContainer;
-    for(int p=0;p<geom.npoint;p++) AcceleratorViewContainer.push_back(A[p].View());
-    Aview *Aview_p = & AcceleratorViewContainer[0];
+    autoView( in_v , in, AcceleratorRead);
+    autoView( out_v , out, AcceleratorWrite);
+    autoView( Stencil_v, Stencil, AcceleratorRead);
+    vectorViewPointerOpen(Aview_v, Aview_p, A, AcceleratorRead);
+    auto& geom_v = geom;
 
     const int Nsimd = CComplex::Nsimd();
     typedef decltype(coalescedRead(in_v[0])) calcVector;
@@ -571,13 +569,6 @@ public:
     //    double bytes = osites*nbasis*nbasis*geom.npoint*sizeof(CComplex);
     double usecs =-usecond();
 
-    // need to take references, otherwise we get illegal memory accesses
-    // happens since the lambda copies the this pointer which points to host memory, see
-    // - https://docs.nvidia.com/cuda/cuda-c-programming-guide/#star-this-capture
-    // - https://devblogs.nvidia.com/new-compiler-features-cuda-8/
-    auto& geom_    = geom;
-    auto& Stencil_ = Stencil;
-
     accelerator_for(sss, Grid()->oSites()*nbasis, Nsimd, {
       int ss = sss/nbasis;
       int b  = sss%nbasis;
@@ -587,14 +578,14 @@ public:
       StencilEntry *SE;
 
       int lane = acceleratorSIMTlane(Nsimd);
-      for(int point=0;point<geom_.npoint;point++){
+      for(int point=0;point<geom_v.npoint;point++){
 
-	SE=Stencil_.GetEntry(ptype,point,ss);
+	SE=Stencil_v.GetEntry(ptype,point,ss);
 	  
 	if(SE->_is_local) { 
 	  nbr = coalescedReadPermute(in_v[SE->_offset],ptype,SE->_permute,lane);
 	} else {
-	  nbr = coalescedRead(Stencil_.CommBuf()[SE->_offset],lane);
+	  nbr = coalescedRead(Stencil_v.CommBuf()[SE->_offset],lane);
 	}
 	acceleratorSynchronise();
 
@@ -612,6 +603,7 @@ public:
         std::cout << GridLogMessage << "\t  mflop/s   " << flops/usecs<<std::endl;
         std::cout << GridLogMessage << "\t  MB/s      " << bytes/usecs<<std::endl;
     */
+    vectorViewPointerClose(Aview_v, Aview_p);
   };
 
   void Mdag (const CoarseVector &in, CoarseVector &out)
@@ -637,23 +629,14 @@ public:
     conformable(_grid,in.Grid());
     conformable(_grid,out.Grid());
 
-    typedef LatticeView<Cobj> Aview;
-    Vector<Aview> AcceleratorViewContainer;
-    for(int p=0;p<geom.npoint;p++) AcceleratorViewContainer.push_back(A[p].View());
-    Aview *Aview_p = & AcceleratorViewContainer[0];
-
-    auto out_v = out.View();
-    auto in_v  = in.View();
+    vectorViewPointerOpen(Aview_v, Aview_p, A, AcceleratorRead);
+    autoView( out_v , out, AcceleratorWrite);
+    autoView( in_v  , in, AcceleratorRead);
+    autoView( Stencil_v  , Stencil, AcceleratorRead);
 
     const int Nsimd = CComplex::Nsimd();
     typedef decltype(coalescedRead(in_v[0])) calcVector;
     typedef decltype(coalescedRead(in_v[0](0))) calcComplex;
-
-    // need to take references, otherwise we get illegal memory accesses
-    // happens since the lambda copies the this pointer which points to host memory, see
-    // - https://docs.nvidia.com/cuda/cuda-c-programming-guide/#star-this-capture
-    // - https://devblogs.nvidia.com/new-compiler-features-cuda-8/
-    auto& Stencil_ = Stencil;
 
     accelerator_for(sss, Grid()->oSites()*nbasis, Nsimd, {
       int ss = sss/nbasis;
@@ -664,12 +647,12 @@ public:
       StencilEntry *SE;
 
       int lane = acceleratorSIMTlane(Nsimd);
-      SE=Stencil_.GetEntry(ptype,point,ss);
+      SE=Stencil_v.GetEntry(ptype,point,ss);
 	  
       if(SE->_is_local) { 
 	nbr = coalescedReadPermute(in_v[SE->_offset],ptype,SE->_permute,lane);
       } else {
-	nbr = coalescedRead(Stencil_.CommBuf()[SE->_offset],lane);
+	nbr = coalescedRead(Stencil_v.CommBuf()[SE->_offset],lane);
       }
       acceleratorSynchronise();
 
@@ -678,6 +661,7 @@ public:
       }
       coalescedWrite(out_v[ss](b),res,lane);
     });
+    vectorViewPointerClose(Aview_v, Aview_p);
 #if 0
     accelerator_for(ss,Grid()->oSites(),1,{
 
@@ -686,14 +670,14 @@ public:
       int ptype;
       StencilEntry *SE;
       
-      SE=Stencil_.GetEntry(ptype,point,ss);
+      SE=Stencil_v.GetEntry(ptype,point,ss);
       
       if(SE->_is_local&&SE->_permute) {
 	permute(nbr,in_v[SE->_offset],ptype);
       } else if(SE->_is_local) {
 	nbr = in_v[SE->_offset];
       } else {
-	nbr = Stencil_.CommBuf()[SE->_offset];
+	nbr = Stencil_v.CommBuf()[SE->_offset];
       }
       acceleratorSynchronise();
 
@@ -885,10 +869,10 @@ public:
 	    prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter");
 	    
 	    prof_.Start("CoarsenOperator.ConstructLinksProj");
-	    auto iZProj_v = iZProj.View() ;
-	    auto oZProj_v = oZProj.View() ;
-	    auto A_p     =  A[p].View();
-	    auto A_self  = A[self_stencil].View();
+	    autoView(iZProj_v, iZProj, AcceleratorRead);
+	    autoView(oZProj_v, oZProj, AcceleratorRead);
+        autoView(A_p,  A[p], AcceleratorWrite);
+        autoView(A_self,  A[self_stencil], AcceleratorWrite);
 
 	    accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{ coalescedWrite(A_p[ss](j,i),oZProj_v(ss)); });
 
@@ -908,11 +892,11 @@ public:
 
 	prof_.Start("CoarsenOperator.AccumInner");
 	{
-	  auto tmp_      = tmp.View();
-	  auto evenmask_ = evenmask.View();
-	  auto oddmask_  =  oddmask.View();
-	  auto Mphie_    =  Mphie.View();
-	  auto Mphio_    =  Mphio.View();
+	  autoView(tmp_, tmp, AcceleratorWrite);
+	  autoView(evenmask_, evenmask, AcceleratorRead);
+	  autoView(oddmask_,  oddmask, AcceleratorRead);
+	  autoView(Mphie_,  Mphie, AcceleratorRead);
+	  autoView(Mphio_,  Mphio, AcceleratorRead);
 	  accelerator_for(ss, FineGrid->oSites(), Fobj::Nsimd(),{ 
 	      coalescedWrite(tmp_[ss],evenmask_(ss)*Mphie_(ss) + oddmask_(ss)*Mphio_(ss));
 	    });
@@ -924,8 +908,8 @@ public:
 	prof_.Stop("CoarsenOperator.ProjectToSubspaceInner");
 
 	prof_.Start("CoarsenOperator.ConstructLinksSelf");
-	auto SelfProj_ = SelfProj.View();
-	auto A_self  = A[self_stencil].View();
+	autoView(SelfProj_, SelfProj, AcceleratorRead);
+	autoView(A_self, A[self_stencil], AcceleratorWrite);
 
 	accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(),{
 	  for(int j=0;j<nbasis;j++){
@@ -1018,8 +1002,8 @@ public:
       int dir   = geom.directions[p];
       int disp  = geom.displacements[p];
       if(disp==-1) {
-        auto tmp   = closure(adj(A[p]));
-        auto tmp_v = tmp.View();
+        auto tmp   = adj(A[p]);
+        autoView(tmp_v, tmp, AcceleratorWrite);
         accelerator_for(ss, Grid()->oSites(), Fobj::Nsimd(), {
           Real factor;
           auto tmp_t = tmp_v(ss);

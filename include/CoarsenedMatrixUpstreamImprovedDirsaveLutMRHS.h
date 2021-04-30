@@ -97,8 +97,8 @@ inline void blockLutedInnerProduct(Lattice<iVector<CComplex, nbasis>>  &coarseDa
 
   auto lut_v        = lut.View();
   auto sizes_v      = lut.Sizes();
-  auto fineData_v   = fineData.View();
-  auto coarseData_v = coarseData.View();
+  autoView(fineData_v, fineData, AcceleratorRead);
+  autoView(coarseData_v, coarseData, AcceleratorWrite);
   vectorViewPointerOpen(Basis_v, Basis_p, Basis, AcceleratorRead);
 
   accelerator_for(scFi, nbasis*coarse->oSites(), vobj::Nsimd(), {
@@ -147,8 +147,8 @@ inline void blockLutedAxpy(const Lattice<iVector<CComplex, nbasis>> &coarseData,
   }
 
   auto rlut_v       = lut.ReverseView();
-  auto fineData_v   = fineData.View();
-  auto coarseData_v = coarseData.View();
+  autoView(fineData_v, fineData, AcceleratorWrite);
+  autoView(coarseData_v, coarseData, AcceleratorRead);
   vectorViewPointerOpen(Basis_v, Basis_p, Basis, AcceleratorRead);
 
   accelerator_for(sfF, fine->oSites(), vobj::Nsimd(), {
@@ -187,8 +187,8 @@ void blockLutedOrthonormalise(Lattice<CComplex>                    &ip,
   Lattice<dotp> alpha(coarse);
   Lattice<dotp> norm(coarse);
 
-  auto  alpha_v  = alpha.View();
-  auto  norm_v   = norm.View();
+  autoView( alpha_v, alpha, AcceleratorWrite);
+  autoView( norm_v, norm, AcceleratorWrite);
   auto  lut_v    = lut.View();
   auto  sizes_v  = lut.Sizes();
   vectorViewPointerOpen(Basis_v, Basis_p, Basis, AcceleratorWrite);
@@ -329,7 +329,7 @@ public:
     for(int i=0;i<nbasis;i++){
       blockProject(iProj,subspace[i],subspace);
       eProj=Zero(); 
-      auto eProj_v = eProj.View();
+      autoView(eProj_v, eProj, AcceleratorWrite);
       accelerator_for(ss, CoarseGrid->oSites(),1,{
 	eProj_v[ss](i)=CComplex(1.0);
       });
@@ -450,10 +450,10 @@ public:
 	
 	hermop.HermOp(*Tn,y);
 
-	auto y_v = y.View();
-	auto Tn_v = Tn->View();
-	auto Tnp_v = Tnp->View();
-	auto Tnm_v = Tnm->View();
+	autoView( y_v , y, AcceleratorWrite);
+	autoView( Tn_v , (*Tn), AcceleratorWrite);
+	autoView( Tnp_v , (*Tnp), AcceleratorWrite);
+	autoView( Tnm_v , (*Tnm), AcceleratorWrite);
 	const int Nsimd = CComplex::Nsimd();
 	accelerator_forNB(ss, FineGrid->oSites(), Nsimd, {
 	  coalescedWrite(y_v[ss],xscale*y_v(ss)+mscale*Tn_v(ss));
@@ -749,13 +749,11 @@ public:
     Stencil->HaloExchange(in,compressor);
     comms_usec += usecond();
 
-    auto in_v = in.View();
-    auto out_v = out.View();
-    typedef LatticeView<Cobj> Aview;
-
-    Vector<Aview> AcceleratorViewContainer;
-    for(int p=0;p<geom.npoint;p++) AcceleratorViewContainer.push_back(A[p].View());
-    Aview *Aview_p = & AcceleratorViewContainer[0];
+    autoView(in_v, in, AcceleratorRead);
+    autoView(out_v, out, AcceleratorWrite);
+    autoView(Stencil_v, (*Stencil), AcceleratorRead);
+    auto& geom_ = geom;
+    vectorViewPointerOpen(Aview_v, Aview_p, A, AcceleratorRead);
 
     const int Nsimd = CComplex::Nsimd();
     typedef decltype(coalescedRead(in_v[0])) calcVector;
@@ -765,14 +763,6 @@ public:
     //    double flops = osites*Nsimd*nbasis*nbasis*8.0*geom.npoint;
     //    double bytes = osites*nbasis*nbasis*geom.npoint*sizeof(CComplex);
     double usecs =-usecond();
-
-    // need to take references, otherwise we get illegal memory accesses
-    // happens since the lambda copies the this pointer which points to host memory, see
-    // - https://docs.nvidia.com/cuda/cuda-c-programming-guide/#star-this-capture
-    // - https://devblogs.nvidia.com/new-compiler-features-cuda-8/
-    auto& geom_    = geom;
-
-    auto Stencil_v = Stencil->View();
 
     accelerator_for(sFb, in.Grid()->oSites()*nbasis, Nsimd, {
       int sF = sFb/nbasis;
@@ -802,6 +792,7 @@ public:
       }
       coalescedWrite(out_v[sF](b),res,lane);
     });
+    vectorViewPointerClose(Aview_v, Aview_p);
     usecs +=usecond();
 
     /*
@@ -835,20 +826,17 @@ public:
   {
     conformable(in.Grid(),out.Grid());
 
-    Stencil        = getCorrectStencil(in.Grid());
-    auto Stencil_v = Stencil->View();
+    Stencil = getCorrectStencil(in.Grid());
+    autoView(Stencil_v, (*Stencil), AcceleratorRead);
 
     int LLs = 1;
     if(in.Grid()->_ndimension == _CoarseFiveDimGrid->_ndimension)
       LLs = Ls;
 
-    typedef LatticeView<Cobj> Aview;
-    Vector<Aview> AcceleratorViewContainer;
-    for(int p=0;p<geom.npoint;p++) AcceleratorViewContainer.push_back(A[p].View());
-    Aview *Aview_p = & AcceleratorViewContainer[0];
+    vectorViewPointerOpen(Aview_v, Aview_p, A, AcceleratorRead);
 
-    auto out_v = out.View();
-    auto in_v  = in.View();
+    autoView(out_v, out, AcceleratorWrite);
+    autoView(in_v, in, AcceleratorRead);
 
     const int Nsimd = CComplex::Nsimd();
     typedef decltype(coalescedRead(in_v[0])) calcVector;
@@ -879,6 +867,7 @@ public:
       }
       coalescedWrite(out_v[sF](b),res,lane);
     });
+    vectorViewPointerClose(Aview_v, Aview_p);
 #if 0
     accelerator_for(ss,Grid()->oSites(),1,{
 
@@ -1017,7 +1006,7 @@ public:
     for(int i=0;i<nbasis;i+=nblock){
 
       prof_.Start("CoarsenOperator.ExtractVector");
-      auto  phi_v       = phi.View();
+      autoView( phi_v, phi, AcceleratorWrite);
       vectorViewPointerOpen(subspace_v, subspace_p, Subspace.subspace, AcceleratorRead);
       accelerator_for(sfF, _FineFiveDimGrid->oSites(), Fobj::Nsimd(),{
         auto sfU = sfF/nblock;
@@ -1046,8 +1035,8 @@ public:
 	  prof_.Stop("CoarsenOperator.ProjectToSubspaceOuter");
 
 	  prof_.Start("CoarsenOperator.ConstructLinksProj");
-	  auto oProj_v = oProj.View() ;
-	  auto A_p     = A[p].View();
+	  autoView(oProj_v, oProj, AcceleratorRead);
+	  autoView(A_p, A[p], AcceleratorWrite);
 	  accelerator_for(scF, _CoarseFiveDimGrid->oSites(), Fobj::Nsimd(),{
             auto scU = scF/nblock;
             auto i5  = scF%nblock;
@@ -1070,11 +1059,11 @@ public:
 
 	prof_.Start("CoarsenOperator.AccumInner");
 	{
-	  auto tmp_      = tmp.View();
-	  auto evenmask_ = evenmask.View();
-	  auto oddmask_  =  oddmask.View();
-	  auto Mphie_    =  Mphie.View();
-	  auto Mphio_    =  Mphio.View();
+	  autoView( tmp_      , tmp, AcceleratorWrite);
+	  autoView( evenmask_ , evenmask, AcceleratorRead);
+	  autoView( oddmask_  ,  oddmask, AcceleratorRead);
+	  autoView( Mphie_    ,  Mphie, AcceleratorRead);
+	  autoView( Mphio_    ,  Mphio, AcceleratorRead);
 	  accelerator_for(ss, _FineFiveDimGrid->oSites(), Fobj::Nsimd(),{
 	      coalescedWrite(tmp_[ss],evenmask_(ss)*Mphie_(ss) + oddmask_(ss)*Mphio_(ss));
 	    });
@@ -1086,8 +1075,8 @@ public:
 	prof_.Stop("CoarsenOperator.ProjectToSubspaceInner");
 
 	prof_.Start("CoarsenOperator.ConstructLinksSelf");
-	auto SelfProj_ = SelfProj.View();
-	auto A_self  = A[self_stencil].View();
+	autoView(SelfProj_, SelfProj, AcceleratorRead);
+	autoView(A_self, A[self_stencil], AcceleratorWrite);
 
 	accelerator_for(scF, _CoarseFiveDimGrid->oSites(), Fobj::Nsimd(),{
 	  auto scU = scF/nblock;
@@ -1321,7 +1310,7 @@ public:
   //   const int nRHS = grid_5d->_rdimensions[0];
   //   assert(in_4d.size() == nRHS);
 
-  //   auto  out_5d_v       = out_5d.View();
+  //   autoView( out_5d_v, out_5d, AcceleratorWrite);
   //   vectorViewPointerOpen(in_4d_v, in_4d_p, in_4d, AcceleratorRead);
   //   accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
   //     auto sU  = sF/nRHS;
@@ -1338,7 +1327,7 @@ public:
   //   const int nRHS = grid_5d->_rdimensions[0];
   //   assert(out_4d.size() == nRHS);
 
-  //   auto  in_5d_v       = in_5d.View();
+  //   autoView( in_5d_v, in_5d, AcceleratorRead);
   //   vectorViewPointerOpen(out_4d_v, out_4d_p, out_4d, AcceleratorWrite);
   //   accelerator_for(sF, grid_5d->oSites(), Field::vector_type::Nsimd(),{
   //     auto sU  = sF/nRHS;

@@ -41,8 +41,8 @@ void convertLayout(Lattice<iScalar<iMatrix<iMatrix<Simd, nbasis / ncs>, ncs>>> c
 
   typedef iMatrix<CComplex, nbasis> InnerTypeOut;
 
-  auto out_v = out.View();
-  auto in_v  = in.View();
+  autoView(out_v, out, AcceleratorWrite);
+  autoView(in_v , in, AcceleratorRead);
   accelerator_for(ss, grid->oSites(), Simd::Nsimd(), {
     decltype(coalescedRead(InnerTypeOut())) out_t;
     auto in_t = in_v(ss);
@@ -70,8 +70,8 @@ void convertLayout(Lattice<iMatrix<CComplex, nbasis>>&                          
 
   typedef iScalar<iMatrix<iMatrix<Simd, nbasis / ncs>, ncs>> InnerTypeOut;
 
-  auto out_v = out.View();
-  auto in_v  = in.View();
+  autoView(out_v, out, AcceleratorWrite);
+  autoView(in_v , in, AcceleratorRead);
   accelerator_for(ss, grid->oSites(), Simd::Nsimd(), {
     decltype(coalescedRead(InnerTypeOut())) out_t;
     auto in_t = in_v(ss);
@@ -99,8 +99,8 @@ void convertLayout(Lattice<iScalar<iVector<iVector<Simd, nbasis / ncs>, ncs>>> c
 
   typedef iVector<CComplex, nbasis> InnerTypeOut;
 
-  auto out_v = out.View();
-  auto in_v  = in.View();
+  autoView(out_v, out, AcceleratorWrite);
+  autoView(in_v , in, AcceleratorRead);
   accelerator_for(ss, grid->oSites(), Simd::Nsimd(), {
     decltype(coalescedRead(InnerTypeOut())) out_t;
     auto in_t = in_v(ss);
@@ -124,8 +124,8 @@ void convertLayout(Lattice<iVector<CComplex, nbasis>> const&                    
 
   typedef iScalar<iVector<iVector<Simd, nbasis / ncs>, ncs>> InnerTypeOut;
 
-  auto out_v = out.View();
-  auto in_v  = in.View();
+  autoView(out_v, out, AcceleratorWrite);
+  autoView(in_v , in, AcceleratorRead);
   accelerator_for(ss, grid->oSites(), Simd::Nsimd(), {
     decltype(coalescedRead(InnerTypeOut())) out_t;
     auto in_t = in_v(ss);

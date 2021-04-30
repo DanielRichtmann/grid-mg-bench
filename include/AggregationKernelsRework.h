@@ -67,8 +67,8 @@ public:
 
     coarseVec = Zero();
 
-    auto fineVec_v   = fineVec.View();
-    auto coarseVec_v = coarseVec.View();
+    autoView(fineVec_v, fineVec, CpuRead);
+    autoView(coarseVec_v, coarseVec, CpuWrite);
     thread_for(sf, fineGrid->oSites(), {
       int        sc;
       Coordinate coor_c(nDimension);
@@ -83,7 +83,7 @@ public:
 
       thread_critical {
         for(int i = 0; i < Nc_c; ++i) {
-          auto projector_v = projector[i].View();
+          autoView(projector_v, projector[i], CpuRead);
           for(int s = 0; s < Ns_f; ++s)
             coarseVec_v[sc]()(s / Ns_b)(i) =
               coarseVec_v[sc]()(s / Ns_b)(i) +
@@ -123,8 +123,8 @@ public:
 
     typedef CoarseningLookupTable::size_type size_type;
 
-    auto fineVec_v   = fineVec.View();
-    auto coarseVec_v = coarseVec.View();
+    autoView(fineVec_v, fineVec, AcceleratorRead);
+    autoView(coarseVec_v, coarseVec, AcceleratorWrite);
     auto lut_v       = lut.View();
     auto sizes_v     = lut.Sizes();
 
@@ -175,8 +175,8 @@ public:
       assert(block_r[d] * coarseGrid->_rdimensions[d] == fineGrid->_rdimensions[d]);
     }
 
-    auto fineVec_v   = fineVec.View();
-    auto coarseVec_v = coarseVec.View();
+    autoView(fineVec_v, fineVec, CpuWrite);
+    autoView(coarseVec_v, coarseVec, CpuRead);
     thread_for(sf, fineGrid->oSites(), {
       int        sc;
       Coordinate coor_c(nDimension);
@@ -188,7 +188,7 @@ public:
 
       iScalar<Simd> coarseTmp;
       for(int i = 0; i < Nc_c; ++i) {
-        auto projector_v = projector[i].View();
+        autoView(projector_v, projector[i], CpuRead);
         if(i == 0) {
           for(int s = 0; s < Ns_f; ++s) {
             coarseTmp          = coarseVec_v[sc]()(s / Ns_b)(i);
@@ -232,8 +232,8 @@ public:
 
     typedef CoarseningLookupTable::size_type size_type;
 
-    auto fineVec_v   = fineVec.View();
-    auto coarseVec_v = coarseVec.View();
+    autoView(fineVec_v, fineVec, AcceleratorWrite);
+    autoView(coarseVec_v, coarseVec, AcceleratorRead);
     auto rlut_v      = lut.ReverseView();
 
     vectorViewPointerOpen(projector_v, projector_p, projector, AcceleratorRead);
@@ -278,8 +278,8 @@ public:
 
     typedef CoarseningLookupTable::size_type size_type;
 
-    auto alpha_v = alpha.View();
-    auto norm_v  = norm.View();
+    autoView(alpha_v, alpha, Grid::AcceleratorWrite);
+    autoView(norm_v, norm, Grid::AcceleratorWrite);
 
     auto lut_v   = lut.View();
     auto sizes_v = lut.Sizes();

@@ -141,9 +141,9 @@ void performChiralDoublingG5R5(std::vector<Field>& basisVectors) {
               << "norm2(vec[" << n << "]) = " << norm2(basisVectors[n]) << ". "
               << "norm2(vec[" << n+nb << "]) = " << norm2(basisVectors[n+nb]) << std::endl;
 
-    auto tmp1_v    = tmp1.View();
-    auto basis_l_v = basisVectors[n].View();
-    auto basis_r_v = basisVectors[n+nb].View();
+    autoView(tmp1_v,    tmp1,               AcceleratorRead);
+    autoView(basis_l_v, basisVectors[n],    AcceleratorRead);
+    autoView(basis_r_v, basisVectors[n+nb], AcceleratorRead);
 
     std::cout << GridLogDebug << "original = " << tmp1_v[0] << std::endl;
     std::cout << GridLogDebug << "left = " << basis_l_v[0] << std::endl;
@@ -166,9 +166,9 @@ void performChiralDoublingG5C(std::vector<Field>& basisVectors) {
               << "norm2(vec[" << n << "]) = " << norm2(basisVectors[n]) << ". "
               << "norm2(vec[" << n+nb << "]) = " << norm2(basisVectors[n+nb]) << std::endl;
 
-    auto tmp1_v    = tmp1.View();
-    auto basis_l_v = basisVectors[n].View();
-    auto basis_r_v = basisVectors[n+nb].View();
+    autoView(tmp1_v,    tmp1,               AcceleratorRead);
+    autoView(basis_l_v, basisVectors[n],    AcceleratorRead);
+    autoView(basis_r_v, basisVectors[n+nb], AcceleratorRead);
 
     std::cout << GridLogDebug << "original = " << tmp1_v[0] << std::endl;
     std::cout << GridLogDebug << "left = " << basis_l_v[0] << std::endl;

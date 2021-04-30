@@ -113,8 +113,8 @@ public:
     SimpleCompressor<SiteSpinor> compressor;
     stencil_.HaloExchange(in, compressor);
 
-    auto in_v  = in.View();
-    auto out_v = out.View();
+    autoView(in_v, in, AcceleratorRead);
+    autoView(out_v, out, AcceleratorWrite);
 
     typedef LatticeView<SiteLinkField>               LinkFieldView;
     typedef decltype(coalescedRead(in_v[0]))         SiteSpinorCR;
@@ -245,9 +245,9 @@ public:
 
     auto point = geom_.PointFromDirDisp(dir, disp);
 
-    auto in_v      = in.View();
-    auto out_v     = out.View();
-    auto Y_point_v = Y_[point].View();
+    autoView(in_v, in, AcceleratorRead);
+    autoView(out_v, out, AcceleratorWrite);
+    autoView(Y_point_v, Y_[point], AcceleratorRead);
 
     typedef decltype(coalescedRead(in_v[0]))         SiteSpinorCR;
     typedef decltype(coalescedRead(in_v[0]()(0)(0))) SiteScalarCR;
@@ -300,8 +300,8 @@ public:
       SimpleCompressor<SiteSpinor> compressor;
       st.HaloExchange(tmp, compressor);
 
-      auto tmp_v  = tmp.View();
-      auto tmp2_v = tmp2.View();
+      autoView(tmp_v, tmp, AcceleratorRead);
+      autoView(tmp2_v, tmp2, AcceleratorWrite);
 
       typedef LatticeView<SiteLinkField>                LinkFieldView;
       typedef decltype(coalescedRead(tmp_v[0]))         SiteSpinorCR;
@@ -350,8 +350,8 @@ public:
       SimpleCompressor<SiteSpinor> compressor;
       st.HaloExchange(in, compressor);
 
-      auto in_v  = in.View();
-      auto out_v = out.View();
+      autoView(in_v, in, AcceleratorRead);
+      autoView(out_v, out, AcceleratorWrite);
 
       typedef LatticeView<SiteLinkField>               LinkFieldView;
       typedef decltype(coalescedRead(in_v[0]))         SiteSpinorCR;
@@ -558,11 +558,11 @@ public:
         prof_.Start("CoarsenOperator.AccumInner");
         {
           for(int k = 0; k < Ns_c; ++k) {
-            auto iSum_v        = iSum[k].View();
-            auto evenMask_v    = evenBlocks.View();
-            auto oddMask_v     = oddBlocks.View();
-            auto MphiSplit_e_v = MphiSplit_e[k].View();
-            auto MphiSplit_o_v = MphiSplit_o[k].View();
+            autoView(iSum_v, iSum[k], AcceleratorWrite);
+            autoView(evenMask_v, evenBlocks, AcceleratorRead);
+            autoView(oddMask_v, oddBlocks, AcceleratorRead);
+            autoView(MphiSplit_e_v, MphiSplit_e[k], AcceleratorRead);
+            autoView(MphiSplit_o_v, MphiSplit_o[k], AcceleratorRead);
             accelerator_for(sf, FineGrid->oSites(), Simd::Nsimd(), {
               coalescedWrite(iSum_v[sf], evenMask_v(sf) * MphiSplit_e_v(sf) + oddMask_v(sf) * MphiSplit_o_v(sf));
             });

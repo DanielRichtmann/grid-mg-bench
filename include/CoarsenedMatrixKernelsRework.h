@@ -60,7 +60,7 @@ public:
 
     vectorViewPointerOpen(out_v, out_p, out, AcceleratorWrite);
 
-    auto in_v = in.View();
+    autoView(in_v, in, AcceleratorRead);
 
     if(in.Grid()->_ndimension == 0) { // actually there is a 5 here, 0 just for testing
       int      Ls    = in.Grid()->_rdimensions[0];
@@ -91,8 +91,8 @@ public:
                                  std::vector<LinkField>&          Y,
                                  std::vector<FermionField> const& iProjSplit,
                                  std::vector<FermionField> const& oProjSplit) {
-    auto Y_p_v    = Y[p].View();
-    auto Y_self_v = Y[self_stencil].View();
+    autoView(Y_p_v, Y[p], AcceleratorWrite);
+    autoView(Y_self_v, Y[self_stencil], AcceleratorWrite);
 
     vectorViewPointerOpen(iProjSplit_v, iProjSplit_p, iProjSplit, AcceleratorRead);
     vectorViewPointerOpen(oProjSplit_v, oProjSplit_p, oProjSplit, AcceleratorRead);
