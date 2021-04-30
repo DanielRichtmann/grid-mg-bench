@@ -786,7 +786,7 @@ public:
       int ptype;
       StencilEntry *SE;
 
-      int lane=SIMTlane(Nsimd);
+      int lane=acceleratorSIMTlane(Nsimd);
       for(int point=0;point<geom_.npoint;point++){
 
 	SE=Stencil_v.GetEntry(ptype,point,sF);
@@ -796,7 +796,7 @@ public:
 	} else {
 	  nbr = coalescedRead(Stencil_v.CommBuf()[SE->_offset],lane);
 	}
-	synchronise();
+	acceleratorSynchronise();
 
 	for(int bb=0;bb<nbasis;bb++) {
 	  res = res + coalescedRead(Aview_p[point][sU](b,bb))*nbr(bb);
@@ -866,7 +866,7 @@ public:
       int ptype;
       StencilEntry *SE;
 
-      int lane=SIMTlane(Nsimd);
+      int lane=acceleratorSIMTlane(Nsimd);
       SE=Stencil_v.GetEntry(ptype,point,sF);
 	  
       if(SE->_is_local) { 
@@ -874,7 +874,7 @@ public:
       } else {
 	nbr = coalescedRead(Stencil_v.CommBuf()[SE->_offset],lane);
       }
-      synchronise();
+      acceleratorSynchronise();
 
       for(int bb=0;bb<nbasis;bb++) {
 	res = res + coalescedRead(Aview_p[point][sU](b,bb))*nbr(bb);
@@ -898,7 +898,7 @@ public:
       } else {
 	nbr = Stencil_v.CommBuf()[SE->_offset];
       }
-      synchronise();
+      acceleratorSynchronise();
 
       res = res + Aview_p[point][ss]*nbr;
       

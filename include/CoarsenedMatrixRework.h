@@ -138,7 +138,7 @@ public:
 
       SiteScalarCR  res = 0;
       SiteSpinorCR  nbr;
-      int           lane = SIMTlane(Simd::Nsimd());
+      const int     lane = acceleratorSIMTlane(Simd::Nsimd());
       int           ptype;
       StencilEntry* SE;
 
@@ -150,7 +150,7 @@ public:
         else
           nbr = coalescedRead(stencil.CommBuf()[SE->_offset], lane);
 
-        synchronise();
+        acceleratorSynchronise();
 
         for(int s2=0;s2<Ns_c;s2++) {
           for(int c2=0;c2<Nc_c;c2++)
@@ -262,7 +262,7 @@ public:
 
       SiteScalarCR    res = 0;
       SiteSpinorCR    nbr;
-      int             lane = SIMTlane(Simd::Nsimd());
+      int             lane = acceleratorSIMTlane(Simd::Nsimd());
       int             ptype;
       StencilEntry*   SE;
 
@@ -273,7 +273,7 @@ public:
       else
         nbr = coalescedRead(stencil.CommBuf()[SE->_offset], lane);
 
-      synchronise();
+      acceleratorSynchronise();
 
       for(int s2=0;s2<Ns_c;s2++) {
         for(int c2=0;c2<Nc_c;c2++)
@@ -321,7 +321,7 @@ public:
 
         SiteScalarCR    res = 0;
         SiteSpinorCR    nbr;
-        int             lane = SIMTlane(Simd::Nsimd());
+        int             lane = acceleratorSIMTlane(Simd::Nsimd());
         int             ptype;
         StencilEntry*   SE;
 
@@ -334,7 +334,7 @@ public:
             else
               nbr = coalescedRead(st.CommBuf()[SE->_offset], lane);
 
-            synchronise();
+            acceleratorSynchronise();
 
             for(int s2=0;s2<Ns_c;s2++) {
               for(int c2=0;c2<Nc_c;c2++)
@@ -371,7 +371,7 @@ public:
 
         SiteScalarCR    res = 0.;
         SiteSpinorCR    nbr;
-        int             lane = SIMTlane(Simd::Nsimd());
+        int             lane = acceleratorSIMTlane(Simd::Nsimd());
         int             ptype;
         StencilEntry*   SE;
 
@@ -384,7 +384,7 @@ public:
             else
               nbr = coalescedRead(st.CommBuf()[SE->_offset], lane);
 
-            synchronise();
+            acceleratorSynchronise();
 
             for(int s2=0;s2<Ns_c;s2++) {
               for(int c2=0;c2<Nc_c;c2++)
