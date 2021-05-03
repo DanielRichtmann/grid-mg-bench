@@ -137,22 +137,24 @@ void performChiralDoublingG5R5(std::vector<Field>& basisVectors) {
     G5R5(tmp2, basisVectors[n]);
     axpby(basisVectors[n], 1.0, 1.0, tmp1, tmp2);
     axpby(basisVectors[n+nb], 1.0, -1.0, tmp1, tmp2);
-    std::cout << GridLogMessage << "Chirally doubled vector " << n << ". "
-              << "norm2(vec[" << n << "]) = " << norm2(basisVectors[n]) << ". "
-              << "norm2(vec[" << n+nb << "]) = " << norm2(basisVectors[n+nb]) << std::endl;
+    if(verbose) {
+      std::cout << GridLogMessage << "Chirally doubled vector " << n << ". "
+                << "norm2(vec[" << n << "]) = " << norm2(basisVectors[n]) << ". "
+                << "norm2(vec[" << n+nb << "]) = " << norm2(basisVectors[n+nb]) << std::endl;
 
-    autoView(tmp1_v,    tmp1,               AcceleratorRead);
-    autoView(basis_l_v, basisVectors[n],    AcceleratorRead);
-    autoView(basis_r_v, basisVectors[n+nb], AcceleratorRead);
+      autoView(tmp1_v,    tmp1,               AcceleratorRead);
+      autoView(basis_l_v, basisVectors[n],    AcceleratorRead);
+      autoView(basis_r_v, basisVectors[n+nb], AcceleratorRead);
 
-    std::cout << GridLogDebug << "original = " << tmp1_v[0] << std::endl;
-    std::cout << GridLogDebug << "left = " << basis_l_v[0] << std::endl;
-    std::cout << GridLogDebug << "right = " << basis_r_v[0] << std::endl;
+      std::cout << GridLogDebug << "original = " << tmp1_v[0] << std::endl;
+      std::cout << GridLogDebug << "left = " << basis_l_v[0] << std::endl;
+      std::cout << GridLogDebug << "right = " << basis_r_v[0] << std::endl;
+    }
   }
 }
 
 template<typename Field>
-void performChiralDoublingG5C(std::vector<Field>& basisVectors) {
+void performChiralDoublingG5C(std::vector<Field>& basisVectors, bool verbose=false) {
   assert(basisVectors.size()%2 == 0);
   auto nb = basisVectors.size()/2;
 
@@ -162,17 +164,19 @@ void performChiralDoublingG5C(std::vector<Field>& basisVectors) {
     G5C(tmp2, basisVectors[n]);
     axpby(basisVectors[n], 0.5, 0.5, tmp1, tmp2);
     axpby(basisVectors[n+nb], 0.5, -0.5, tmp1, tmp2);
-    std::cout << GridLogMessage << "Chirally doubled vector " << n << ". "
-              << "norm2(vec[" << n << "]) = " << norm2(basisVectors[n]) << ". "
-              << "norm2(vec[" << n+nb << "]) = " << norm2(basisVectors[n+nb]) << std::endl;
+    if(verbose) {
+      std::cout << GridLogMessage << "Chirally doubled vector " << n << ". "
+                << "norm2(vec[" << n << "]) = " << norm2(basisVectors[n]) << ". "
+                << "norm2(vec[" << n+nb << "]) = " << norm2(basisVectors[n+nb]) << std::endl;
 
-    autoView(tmp1_v,    tmp1,               AcceleratorRead);
-    autoView(basis_l_v, basisVectors[n],    AcceleratorRead);
-    autoView(basis_r_v, basisVectors[n+nb], AcceleratorRead);
+      autoView(tmp1_v,    tmp1,               AcceleratorRead);
+      autoView(basis_l_v, basisVectors[n],    AcceleratorRead);
+      autoView(basis_r_v, basisVectors[n+nb], AcceleratorRead);
 
-    std::cout << GridLogDebug << "original = " << tmp1_v[0] << std::endl;
-    std::cout << GridLogDebug << "left = " << basis_l_v[0] << std::endl;
-    std::cout << GridLogDebug << "right = " << basis_r_v[0] << std::endl;
+      std::cout << GridLogDebug << "original = " << tmp1_v[0] << std::endl;
+      std::cout << GridLogDebug << "left = " << basis_l_v[0] << std::endl;
+      std::cout << GridLogDebug << "right = " << basis_r_v[0] << std::endl;
+    }
   }
 }
 

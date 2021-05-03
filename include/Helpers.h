@@ -98,5 +98,17 @@ Coordinate calcCoarseLattSize(Coordinate const& fineLattSize, Coordinate const& 
   return ret;
 }
 
+template<class Field>
+void basisOrthonormalize(std::vector<Field>& basis, bool onlyFirstHalf=false) {
+  if(onlyFirstHalf) assert(basis.size() % 2 == 0);
+  int max = (onlyFirstHalf) ? basis.size()/2 : basis.size();
+  for(int i=0; i<max; i++) {
+    auto& v = basis[i];
+    basisOrthogonalize(basis, v, i);
+    auto invNorm   = std::pow(norm2(v), -0.5);
+    v = v * invNorm;
+  }
+}
+
 NAMESPACE_END(Rework);
 NAMESPACE_END(Grid);
