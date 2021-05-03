@@ -30,8 +30,10 @@
 NAMESPACE_BEGIN(Grid);
 NAMESPACE_BEGIN(Rework);
 
+
 #define LOG_MG_LVL std::cout << GridLogMG << "Level " << _Level << ": "
 #define LVL_STR "MG_Level_" + std::to_string(_Level) + "::"
+
 
 template<class Field>
 std::unique_ptr<OperatorFunction<Field>> createUtilisedSolver(MGUtilizedSolverType const&          solverType,
@@ -53,6 +55,7 @@ std::unique_ptr<OperatorFunction<Field>> createUtilisedSolver(MGUtilizedSolverTy
     assert(0);
 }
 
+
 template<class Field>
 std::unique_ptr<SchurRedBlackBase<Field>> createUtilisedRBSolver(MGUtilizedSolverType const& solverType,
                                                                  OperatorFunction<Field>&    solver) {
@@ -60,6 +63,7 @@ std::unique_ptr<SchurRedBlackBase<Field>> createUtilisedRBSolver(MGUtilizedSolve
   return std::unique_ptr<SchurRedBlackBase<Field>>(
     new NonHermitianSchurRedBlackDiagMooeeSolve<Field>(solver, false, true));
 }
+
 
 template<class Field>
 void analyseTestVectors(LinearOperatorBase<Field>& Linop, std::vector<Field> const& vectors, int nn) {
@@ -92,11 +96,13 @@ void analyseTestVectors(LinearOperatorBase<Field>& Linop, std::vector<Field> con
   std::cout << std::noshowpos;
 }
 
+
 Coordinate calcCoarseLattSize(Coordinate const& fineLattSize, Coordinate const& blockSize) {
   Coordinate ret(fineLattSize);
   for(int d = 0; d < ret.size(); ++d) ret[d] /= blockSize[d];
   return ret;
 }
+
 
 template<class Field>
 void basisOrthonormalize(std::vector<Field>& basis, bool onlyFirstHalf=false) {
