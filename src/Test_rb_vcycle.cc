@@ -78,7 +78,7 @@ public: // constructors
                                    CoarseSolver&   CoarseSolve,
                                    int             lvl,
                                    int             maxIter,
-                                   RealD           tolerance=-1.0)
+                                   RealD           tolerance=0.0)
     : Aggregates_(Agg)
     , FineOperator_(FineOp)
     , PreSmoother_(PreSmooth)
@@ -109,7 +109,7 @@ public: // member functions
     double rsq  = tolerance * tolerance * r2in;
 
     // check for early convergence
-    if (r2 <= rsq && tolerance != -1.0) return;
+    if (r2 <= rsq && tolerance != 0.0) return;
 
     // log
     if(verboseConvergence) {
@@ -174,24 +174,18 @@ public: // member functions
 
       // terminate when target reached
       if(r2 <= rsq) {
-        // if(tolerance != -1.0) {
-        FineOperator_.Op(out, r); sub(r, r, in);
+        if(tolerance != 0.0) {
+          FineOperator_.Op(out, r); sub(r, r, in);
 
-        RealD srcnorm       = sqrt(r2in);
-        RealD resnorm       = sqrt(norm2(r));
-        RealD true_residual = resnorm / srcnorm;
+          RealD srcnorm       = sqrt(r2in);
+          RealD resnorm       = sqrt(norm2(r));
+          RealD true_residual = resnorm / srcnorm;
 
-        std::cout << GridLogMessage        << "NonHermitianVCycle: Converged on iteration " << n+1
-                  << " computed residual " << sqrt(r2 / r2in)
-                  << " true residual "     << true_residual
-                  << " target "            << tolerance << std::endl;
-        // }
-
-        // std::cout << GridLogMessage << "GMRES Time elapsed: Total   " <<       SolverTimer.Elapsed() << std::endl;
-        // std::cout << GridLogMessage << "GMRES Time elapsed: Matrix  " <<       MatrixTimer.Elapsed() << std::endl;
-        // std::cout << GridLogMessage << "GMRES Time elapsed: Linalg  " <<       LinalgTimer.Elapsed() << std::endl;
-        // std::cout << GridLogMessage << "GMRES Time elapsed: QR      " <<           QrTimer.Elapsed() << std::endl;
-        // std::cout << GridLogMessage << "GMRES Time elapsed: CompSol " << CompSolutionTimer.Elapsed() << std::endl;
+          std::cout << GridLogMessage        << "NonHermitianVCycle: Converged on iteration " << n+1
+                    << " computed residual " << sqrt(r2 / r2in)
+                    << " true residual "     << true_residual
+                    << " target "            << tolerance << std::endl;
+        }
         return;
       }
     }
