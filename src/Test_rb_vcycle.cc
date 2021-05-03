@@ -41,40 +41,6 @@ using namespace Grid::Rework;
 #endif
 
 
-template<class Field>
-class SolverWrapper : public LinearFunction<Field> {
-private: // data members
-  LinearOperatorBase<Field>& Matrix_;
-  OperatorFunction<Field>&   Solver_;
-
-public: // constuctors
-  SolverWrapper(LinearOperatorBase<Field>& Matrix, OperatorFunction<Field>& Solver)
-    : Matrix_(Matrix), Solver_(Solver) {}
-
-public: // member functions
-  void operator()(Field const& in, Field& out) {
-    Solver_(Matrix_, in, out);
-  }
-};
-
-
-template<class Field>
-class SchurSolverWrapper : public LinearFunction<Field> {
-private: // data members
-  CheckerBoardedSparseMatrixBase<Field>& Matrix_;
-  SchurRedBlackBase<Field>&              Solver_;
-
-public: // constuctors
-  SchurSolverWrapper(CheckerBoardedSparseMatrixBase<Field>& Matrix, SchurRedBlackBase<Field>& Solver)
-    : Matrix_(Matrix), Solver_(Solver){};
-
-public: // member functions
-  void operator()(const Field& in, Field& out) {
-    Solver_(Matrix_, in, out);
-  }
-};
-
-
 template<class FineObject, class CComplex, int nbasis, class CoarseSolver>
 class NonHermitianVCyclePreconditioner : public LinearFunction<Lattice<FineObject>> {
 public: // type definitions
