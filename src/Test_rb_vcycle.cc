@@ -229,6 +229,19 @@ public: // constructors
 };
 
 
+void printHeader(std::string const& message) {
+  std::cout << GridLogMessage << std::endl;
+  std::cout << GridLogMessage << "****************************************************************" << std::endl;
+  std::cout << GridLogMessage << "******* Starting test \"" << message << "\" passed" << std::endl;
+  std::cout << GridLogMessage << "****************************************************************" << std::endl;
+}
+void printFooter(std::string const& message) {
+  std::cout << GridLogMessage << "****************************************************************" << std::endl;
+  std::cout << GridLogMessage << "******* Test \"" << message << "\" passed" << std::endl;
+  std::cout << GridLogMessage << "****************************************************************" << std::endl;
+}
+
+
 int main(int argc, char** argv) {
   Grid_init(&argc, &argv);
   /////////////////////////////////////////////////////////////////////////////
@@ -339,6 +352,7 @@ int main(int argc, char** argv) {
 #define USE_EO
 
   {
+    printHeader("apply a single vcycle");
     LatticeFermion src(FGrid); gaussian(FPRNG, src);
     LatticeFermion psi(FGrid); psi = Zero();
     LatticeFermion r(FGrid);   r = Zero();
@@ -352,10 +366,11 @@ int main(int argc, char** argv) {
 
     MdagMOp_Dwc.Op(psi, r); sub(r, r, src);
     assert(sqrt(norm2(r)/norm2(src)) < 3.8e-1);
-    std::cout << GridLogMessage << "****** Test \"apply a single vcycle\" passed" << std::endl;
+    printFooter("apply a single vcycle");
   }
 
   {
+    printHeader("use the vcycle as a standalone solver");
     LatticeFermion src(FGrid); gaussian(FPRNG, src);
     LatticeFermion psi(FGrid); psi = Zero();
     LatticeFermion r(FGrid);   r = Zero();
@@ -369,10 +384,11 @@ int main(int argc, char** argv) {
 
     MdagMOp_Dwc.Op(psi, r); sub(r, r, src);
     assert(sqrt(norm2(r) / norm2(src)) < 5.0e-5);
-    std::cout << GridLogMessage << "****** Test \"use the vcycle as a standalone solver\" passed" << std::endl;
+    printFooter("use the vcycle as a standalone solver");
   }
 
   {
+    printHeader("use the vcycle as a 2lvl preconditioner");
     LatticeFermion src(FGrid); gaussian(FPRNG, src);
     LatticeFermion psi(FGrid); psi = Zero();
     LatticeFermion r(FGrid);   r = Zero();
@@ -389,10 +405,11 @@ int main(int argc, char** argv) {
 
     MdagMOp_Dwc.Op(psi, r); sub(r, r, src);
     assert(sqrt(norm2(r) / norm2(src)) < 1.0e-5);
-    std::cout << GridLogMessage << "******* Test \"use the vcycle as a 2lvl preconditioner\" passed" << std::endl;
+    printFooter("use the vcycle as a 2lvl preconditioner");
   }
 
   {
+    printHeader("use the vcycle as a 3lvl preconditioner");
     LatticeFermion src(FGrid); gaussian(FPRNG, src);
     LatticeFermion psi(FGrid); psi = Zero();
     LatticeFermion r(FGrid);   r = Zero();
@@ -464,7 +481,7 @@ int main(int argc, char** argv) {
 
     MdagMOp_Dwc.Op(psi, r); sub(r, r, src);
     assert(sqrt(norm2(r) / norm2(src)) < 1.0e-5);
-    std::cout << GridLogMessage << "******* Test \"use the vcycle as a 3lvl preconditioner\" passed" << std::endl;
+    printFooter("use the vcycle as a 3lvl preconditioner");
   }
 
   Grid_finalize();
