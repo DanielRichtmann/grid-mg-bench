@@ -111,12 +111,6 @@ public: // member functions
     // check for early convergence
     if (r2 <= rsq && tolerance != 0.0) return;
 
-    // log
-    if(verboseConvergence) {
-      std::cout << GridLogMessage << "NonHermitianVCycle: level = " << level
-                << " relative squared residual norm initially: " << r2/r2in << std::endl;
-    }
-
     for(int n=0; n<maxIter; n++) {
       // pre-smooth
       delta = Zero(); PreSmoother_(r, delta);
@@ -127,11 +121,8 @@ public: // member functions
       // update residuum, r -= M * delta
       FineOperator_.Op(delta, tmp); sub(r, r, tmp);
 
-      // log
-      if(verboseConvergence) {
-        std::cout << GridLogMessage << "NonHermitianVCycle: level = " << level << " cycle = " << n
-                  << " relative squared residual norm after pre-smoothing: " << norm2(r)/r2in << std::endl;
-      }
+      // update residual
+      double r2pre = (verboseConvergence) ? norm2(r) : 0.0; r2 = r2pre;
 
       // promote residual to coarse grid
       Aggregates_.ProjectToSubspace(r_coarse, r);
@@ -148,11 +139,8 @@ public: // member functions
       // update residuum, r -= M * delta
       FineOperator_.Op(delta, tmp); sub(r, r, tmp);
 
-      // log
-      if(verboseConvergence) {
-        std::cout << GridLogMessage << "NonHermitianVCycle: level = " << level << " cycle = " << n
-                  << " relative squared residual norm after coarse solve: " << norm2(r)/r2in << std::endl;
-      }
+      // update residual
+      double r2coarse = (verboseConvergence) ? norm2(r) : 0.0; r2 = r2coarse;
 
       // post-smooth
       delta = Zero(); PostSmoother_(r, delta);
@@ -164,12 +152,17 @@ public: // member functions
       FineOperator_.Op(delta, tmp); sub(r, r, tmp);
 
       // update residual
-      r2 = norm2(r);
+      double r2post = norm2(r); r2 = r2post;
 
       // log
       if(verboseConvergence) {
         std::cout << GridLogMessage << "NonHermitianVCycle: level = " << level << " cycle = " << n
-                  << " relative squared residual norm after post-smoothing: " << r2/r2in << std::endl;
+                  << " relative squared residual norms:"
+                  << " initially "      << r2in/r2in
+                  << " pre-smoothing "  << r2pre/r2in
+                  << " coarse-solve "   << r2coarse/r2in
+                  << " post-smoothing " << r2post/r2in
+                  << std::endl;
       }
 
       // terminate when target reached
@@ -182,7 +175,7 @@ public: // member functions
           RealD true_residual = resnorm / srcnorm;
 
           std::cout << GridLogMessage        << "NonHermitianVCycle: Converged on iteration " << n+1
-                    << " computed residual " << sqrt(r2 / r2in)
+                    << " computed residual " << sqrt(r2/r2in)
                     << " true residual "     << true_residual
                     << " target "            << tolerance << std::endl;
         }
