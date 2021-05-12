@@ -335,6 +335,23 @@ int main(int argc, char** argv) {
   Setup(Aggs, SetupSchurRBSolver); // use schur rb operator to get null vecs of full operator
 
   /////////////////////////////////////////////////////////////////////////////
+  //                     Setup of Aggregation in eo space                    //
+  /////////////////////////////////////////////////////////////////////////////
+
+  Aggregates                  RBAggs(CrbGrid, FrbGrid, Odd);
+  BiCGSTAB<FermionField>      SetupDirectRBSlv(1e-5, 500, false);
+  SolverWrapper<FermionField> SetupDirectRBSolver(DiagTwoOp_Dwc, SetupDirectRBSlv);
+  NullVectorSetup             RBSetup(DiagTwoOp_Dwc, FRBPRNG);
+
+  // dedicated setup for the rb prec operator <- is this correct?
+  // RBSetup(RBAggs, SetupDirectRBSolver);
+
+  // reuse the setup from the unprec operator
+  for(int n=0; n<Aggs.subspace.size(); n++) {
+    pickCheckerboard(Odd, RBAggs.subspace[n], Aggs.subspace[n]);
+  }
+
+  /////////////////////////////////////////////////////////////////////////////
   //                  Setup of CorasenedMatrix and Operators                 //
   /////////////////////////////////////////////////////////////////////////////
 
@@ -389,6 +406,14 @@ int main(int argc, char** argv) {
   { \
     (OP).Op((PSI), (R)); \
     sub((R), (R), (SRC)); \
+    std::cout << GridLogMessage \
+              << "L2-norms of fields:" \
+              << " |psi| = "     << sqrt(norm2((PSI))) \
+              << " |src| = "     << sqrt(norm2((SRC))) \
+              << " |r| = "       << sqrt(norm2((R))) \
+              << " |r|/|src| = " << sqrt(norm2((R)) / norm2((SRC))) \
+              << " tol = "       << (TOL) \
+              << std::endl; \
     assert(sqrt(norm2((R)) / norm2((SRC))) < (TOL)); \
   }
 
@@ -429,6 +454,45 @@ int main(int argc, char** argv) {
   }
 
   {
+    printHeader("apply a single vcycle -- schur around vcycle");
+    initializeFields(psi, r);
+
+    VCyclePreconditioner                                VCycle(RBAggs,
+                                DiagTwoOp_Dwc,
+                                PreSmoothDirectRBSolver,
+                                PostSmoothDirectRBSolver,
+                                DiagTwoOp_Dc,
+                                CoarseDirectRBSolver,
+                                0,
+                                1);
+    OperatorFunctionWrapper<FermionField>               WrappedVCycle(VCycle);
+    NonHermitianSchurRedBlackDiagTwoSolve<FermionField> WrappedVCycleSchurRBSlv(WrappedVCycle);
+    SchurSolverWrapper<FermionField> WrappedVCycleSchurRBSolver(Dwc, WrappedVCycleSchurRBSlv);
+    WrappedVCycleSchurRBSolver(src, psi);
+
+    assertCorrect(MdagMOp_Dwc, psi, r, src, 3.8e-1);
+    printFooter("apply a single vcycle -- schur around vcycle");
+  }
+
+  {
+    printHeader("apply a single vcycle -- everything in eo space");
+    initializeFields(psi_o, r_o);
+
+    VCyclePreconditioner VCycle(RBAggs,
+                                DiagTwoOp_Dwc,
+                                PreSmoothDirectRBSolver,
+                                PostSmoothDirectRBSolver,
+                                DiagTwoOp_Dc,
+                                CoarseDirectRBSolver,
+                                0,
+                                1);
+    VCycle(src_o, psi_o);
+
+    assertCorrect(DiagTwoOp_Dwc, psi_o, r_o, src_o, 3.8e-1);
+    printFooter("apply a single vcycle -- everything in eo space");
+  }
+
+  {
     printHeader("use the vcycle as a standalone solver -- everything on full grid");
     initializeFields(psi, r);
 
@@ -457,6 +521,47 @@ int main(int argc, char** argv) {
 
     assertCorrect(MdagMOp_Dwc, psi, r, src, 5.0e-5);
     printFooter("use the vcycle as a standalone solver -- schur smoother and coarse solver");
+  }
+
+  {
+    printHeader("use the vcycle as a standalone solver -- schur around vcycle");
+    initializeFields(psi, r);
+
+    VCyclePreconditioner                                VCycle(RBAggs,
+                                DiagTwoOp_Dwc,
+                                PreSmoothDirectRBSolver,
+                                PostSmoothDirectRBSolver,
+                                DiagTwoOp_Dc,
+                                CoarseDirectRBSolver,
+                                0,
+                                500,
+                                5e-5);
+    OperatorFunctionWrapper<FermionField>               WrappedVCycle(VCycle);
+    NonHermitianSchurRedBlackDiagTwoSolve<FermionField> WrappedVCycleSchurRBSlv(WrappedVCycle);
+    SchurSolverWrapper<FermionField> WrappedVCycleSchurRBSolver(Dwc, WrappedVCycleSchurRBSlv);
+    WrappedVCycleSchurRBSolver(src, psi);
+
+    assertCorrect(MdagMOp_Dwc, psi, r, src, 5.0e-5);
+    printFooter("use the vcycle as a standalone solver -- schur around vcycle");
+  }
+
+  {
+    printHeader("use the vcycle as a standalone solver -- everything in eo space");
+    initializeFields(psi_o, r_o);
+
+    VCyclePreconditioner VCycle(RBAggs,
+                                DiagTwoOp_Dwc,
+                                PreSmoothDirectRBSolver,
+                                PostSmoothDirectRBSolver,
+                                DiagTwoOp_Dc,
+                                CoarseDirectRBSolver,
+                                0,
+                                500,
+                                5e-5);
+    VCycle(src_o, psi_o);
+
+    assertCorrect(DiagTwoOp_Dwc, psi_o, r_o, src_o, 5.0e-5);
+    printFooter("use the vcycle as a standalone solver -- everything in eo space");
   }
 
   {
@@ -491,6 +596,57 @@ int main(int argc, char** argv) {
 
     assertCorrect(MdagMOp_Dwc, psi, r, src, 1.0e-5);
     printFooter("use the vcycle as a 2lvl preconditioner -- schur smoother and coarse solver");
+  }
+
+  {
+    printHeader("use the vcycle as a 2lvl preconditioner -- schur around vcycle");
+    initializeFields(psi, r);
+
+    VCyclePreconditioner                                VCycle(RBAggs,
+                                DiagTwoOp_Dwc,
+                                PreSmoothDirectRBSolver,
+                                PostSmoothDirectRBSolver,
+                                DiagTwoOp_Dc,
+                                CoarseDirectRBSolver,
+                                0,
+                                1);
+    OperatorFunctionWrapper<FermionField>               WrappedVCycle(VCycle);
+    NonHermitianSchurRedBlackDiagTwoSolve<FermionField> WrappedVCycleSchurRBSlv(WrappedVCycle);
+    SchurSolverWrapper<FermionField>                 WrappedVCycleSchurRBSolver(Dwc, WrappedVCycleSchurRBSlv);
+    FlexibleGeneralisedMinimalResidual<FermionField> OuterSlv(1e-5, 200, WrappedVCycleSchurRBSolver, 2, true);
+    SolverWrapper<FermionField>                      OuterSolver(MdagMOp_Dwc, OuterSlv);
+    OuterSolver(src, psi);
+
+    assertCorrect(MdagMOp_Dwc, psi, r, src, 5.0e-5);
+    printFooter("use the vcycle as a 2lvl preconditioner -- schur around vcycle");
+  }
+
+  {
+    printHeader("use the vcycle as a 2lvl preconditioner -- everything in eo space");
+    initializeFields(psi_o, r_o);
+
+    VCyclePreconditioner VCycle(
+      RBAggs, DiagTwoOp_Dwc, PreSmoothDirectRBSolver, PostSmoothDirectRBSolver, DiagTwoOp_Dc, CoarseDirectRBSolver, 0, 1);
+    FlexibleGeneralisedMinimalResidual<FermionField> OuterSlv(1e-5, 200, VCycle, 2, true);
+    SolverWrapper<FermionField>                      OuterSolver(DiagTwoOp_Dwc, OuterSlv);
+    OuterSolver(src_o, psi_o);
+
+    assertCorrect(DiagTwoOp_Dwc, psi_o, r_o, src_o, 1.0e-5);
+    printFooter("use the vcycle as a 2lvl preconditioner -- everything in eo space");
+  }
+
+  {
+    printHeader("use the vcycle as a 2lvl preconditioner -- schur around outer solver");
+    initializeFields(psi, r);
+
+    VCyclePreconditioner VCycle(RBAggs, DiagTwoOp_Dwc, PreSmoothDirectRBSolver, PostSmoothDirectRBSolver, DiagTwoOp_Dc, CoarseDirectRBSolver, 0, 1);
+    FlexibleGeneralisedMinimalResidual<FermionField>    OuterSlv(1e-5, 200, VCycle, 2, true);
+    NonHermitianSchurRedBlackDiagTwoSolve<FermionField> OuterSchurRBSlv(OuterSlv);
+    SchurSolverWrapper<FermionField>                    OuterSchurRBSolver(Dwc, OuterSchurRBSlv);
+    OuterSchurRBSolver(src, psi);
+
+    assertCorrect(MdagMOp_Dwc, psi, r, src, 1.0e-5);
+    printFooter("use the vcycle as a 2lvl preconditioner -- schur around outer solver");
   }
 
   // TODO this still needs separation
@@ -581,82 +737,6 @@ int main(int argc, char** argv) {
     printFooter("use the vcycle as a 3lvl preconditioner");
   }
   #endif
-
-  /////////////////////////////////////////////////////////////////////////////
-  //                     Setup of Aggregation in eo space                    //
-  /////////////////////////////////////////////////////////////////////////////
-
-  Aggregates                  RBAggs(CrbGrid, FrbGrid, Odd);
-  BiCGSTAB<FermionField>      SetupRBSlv(1e-5, 500, false);
-  SolverWrapper<FermionField> SetupRBSolver(DiagTwoOp_Dwc, SetupRBSlv);
-  NullVectorSetup             RBSetup(DiagTwoOp_Dwc, FRBPRNG);
-
-  // dedicated setup for the rb prec operator
-  // RBSetup(RBAggs, SetupRBSolver);
-
-  // reuse the setup from the unprec operator
-  for(int n=0; n<Aggs.subspace.size(); n++) {
-    pickCheckerboard(Odd, RBAggs.subspace[n], Aggs.subspace[n]);
-  }
-
-  {
-    printHeader("apply a single vcycle -- everything in eo space");
-    initializeFields(psi_o, r_o);
-
-    VCyclePreconditioner VCycle(
-      RBAggs, DiagTwoOp_Dwc, PreSmoothDirectRBSolver, PostSmoothDirectRBSolver, DiagTwoOp_Dc, CoarseDirectRBSolver, 0, 1);
-    VCycle(src_o, psi_o);
-
-    assertCorrect(DiagTwoOp_Dwc, psi_o, r_o, src_o, 3.8e-1);
-    printFooter("apply a single vcycle -- everything in eo space");
-  }
-
-  {
-    printHeader("use the vcycle as a standalone solver -- everything in eo space");
-    initializeFields(psi_o, r_o);
-
-    VCyclePreconditioner VCycle(RBAggs,
-                                DiagTwoOp_Dwc,
-                                PreSmoothDirectRBSolver,
-                                PostSmoothDirectRBSolver,
-                                DiagTwoOp_Dc,
-                                CoarseDirectRBSolver,
-                                0,
-                                500,
-                                5e-5);
-    VCycle(src_o, psi_o);
-
-    assertCorrect(DiagTwoOp_Dwc, psi_o, r_o, src_o, 5.0e-5);
-    printFooter("use the vcycle as a standalone solver -- everything in eo space");
-  }
-
-  {
-    printHeader("use the vcycle as a 2lvl preconditioner -- everything in eo space");
-    initializeFields(psi_o, r_o);
-
-    VCyclePreconditioner VCycle(
-      RBAggs, DiagTwoOp_Dwc, PreSmoothDirectRBSolver, PostSmoothDirectRBSolver, DiagTwoOp_Dc, CoarseDirectRBSolver, 0, 1);
-    FlexibleGeneralisedMinimalResidual<FermionField> OuterSlv(1e-5, 200, VCycle, 2, true);
-    SolverWrapper<FermionField>                      OuterSolver(DiagTwoOp_Dwc, OuterSlv);
-    OuterSolver(src_o, psi_o);
-
-    assertCorrect(DiagTwoOp_Dwc, psi_o, r_o, src_o, 1.0e-5);
-    printFooter("use the vcycle as a 2lvl preconditioner -- everything in eo space");
-  }
-
-  {
-    printHeader("use the vcycle as a 2lvl preconditioner -- schur introduced already in outer solver");
-    initializeFields(psi, r);
-
-    VCyclePreconditioner VCycle(RBAggs, DiagTwoOp_Dwc, PreSmoothDirectRBSolver, PostSmoothDirectRBSolver, DiagTwoOp_Dc, CoarseDirectRBSolver, 0, 1);
-    FlexibleGeneralisedMinimalResidual<FermionField>    OuterSlv(1e-5, 200, VCycle, 2, true);
-    NonHermitianSchurRedBlackDiagTwoSolve<FermionField> OuterSchurRBSlv(OuterSlv);
-    SchurSolverWrapper<FermionField>                    OuterSchurRBSolver(Dwc, OuterSchurRBSlv);
-    OuterSchurRBSolver(src, psi);
-
-    assertCorrect(MdagMOp_Dwc, psi, r, src, 1.0e-5);
-    printFooter("use the vcycle as a 2lvl preconditioner -- schur introduced already in outer solver");
-  }
 
   Grid_finalize();
 }
