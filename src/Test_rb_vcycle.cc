@@ -37,6 +37,7 @@
 #define SINGLE_APPLY
 #define STANDALONE
 #define PRECONDITIONER
+#define NBASIS 12
 
 
 using namespace Grid;
@@ -73,7 +74,7 @@ public: // constructors
     if(fromRandom) for(int n=0; n<nb; n++) gaussian(RNG_, Aggs.subspace[n]);
     else undoChiralDoublingG5C(Aggs.subspace);
 
-    for(int n=0; n<nb; n++) FineSolver(null, Aggs.subspace[n]); // TODO: modify solvers to work with this!
+    for(int n=0; n<nb; n++) FineSolver(null, Aggs.subspace[n]);
 
     basisOrthonormalize(Aggs.subspace, true); // gobal orthonormalization
 
@@ -986,6 +987,9 @@ void runTest(int* argc, char*** argv) {
 
 
 int main(int argc, char** argv) {
+#if defined(NBASIS)
+  runTest<NBASIS, NBASIS>(&argc, &argv);
+#else
   int nbasis = readFromCommandLineInt(&argc, &argv, "--nbasis", 32);
   int nbasisc = readFromCommandLineInt(&argc, &argv, "--nbasisc", 32);
 
@@ -1015,4 +1019,5 @@ int main(int argc, char** argv) {
   else if (nbasis == 48 && nbasisc == 64) runTest<48, 64>(&argc, &argv);
   else if (nbasis == 64 && nbasisc == 64) runTest<64, 64>(&argc, &argv);
   else abort();
+#endif
 }
