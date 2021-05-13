@@ -41,4 +41,5 @@ See the full license in the file "LICENSE" in the top level distribution directo
 #include <MultigridParams.h>
 #include <Helpers.h>
 #include <LevelInfo.h>
+#include <VCycleRework.h>
 #include <MultigridPreconditioner.h>
