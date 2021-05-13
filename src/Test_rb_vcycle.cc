@@ -30,6 +30,7 @@
 #include <Benchmark_helpers.h>
 #include <Helpers.h>
 #include <VCycleRework.h>
+#include <NullVectorSetupRework.h>
 
 
 #define TWO_LEVELS
@@ -43,49 +44,6 @@
 using namespace Grid;
 using namespace Grid::BenchmarkHelpers;
 using namespace Grid::Rework;
-
-
-template<class FineObject, class CComplex, int nbasis>
-class NonHermitianNullVectorSetup {
-public: // type definitions
-  typedef Aggregation<FineObject, CComplex, nbasis> Aggregates;
-  typedef typename Aggregates::FineField            FineField;
-  typedef LinearOperatorBase<FineField>             FineOperator;
-  typedef LinearFunction<FineField>                 FineSolver;
-
-public: // sanity checks
-  static_assert(nbasis % 2 == 0, "Must be even");
-
-public: // data members
-  FineOperator&    FineOperator_;
-  GridParallelRNG& RNG_;
-  static const int nb = nbasis / 2;
-
-public: // constructors
-  NonHermitianNullVectorSetup(FineOperator& FineOp, GridParallelRNG& RNG)
-    : FineOperator_(FineOp), RNG_(RNG) {}
-
-  void operator()(Aggregates& Aggs, FineSolver& FineSolver, bool fromRandom=true) {
-    // fromRandom = true/false -> inital setup/setup update
-    assert(Aggs.subspace.size() == nbasis);
-    FineField null(Aggs.FineGrid); null.Checkerboard() = Aggs.subspace[0].Checkerboard(); null = Zero();
-    const int nb = nbasis/2;
-
-    if(fromRandom) for(int n=0; n<nb; n++) gaussian(RNG_, Aggs.subspace[n]);
-    else undoChiralDoublingG5C(Aggs.subspace);
-
-    for(int n=0; n<nb; n++) FineSolver(null, Aggs.subspace[n]);
-
-    basisOrthonormalize(Aggs.subspace, true); // gobal orthonormalization
-
-    performChiralDoublingG5C(Aggs.subspace);
-
-    // block-wise orthonormalization (2 passes)
-    typename Aggregates::CoarseScalar ip(Aggs.CoarseGrid);
-    blockOrthogonalise(ip, Aggs.subspace);
-    blockOrthogonalise(ip, Aggs.subspace);
-  }
-};
 
 
 void printHeader(std::string const& message) {
